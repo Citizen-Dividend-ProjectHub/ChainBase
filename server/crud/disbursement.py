@@ -27,11 +27,30 @@ async def find(pool: asyncpg.Pool, disbursement_id: int) -> Optional[dict]:
     return dict(row) if row else None
 
 
+async def list_all(pool: asyncpg.Pool) -> list:
+    rows = await pool.fetch(
+        """
+        SELECT d.disbursement_id, d.cycle_id, d.recipient_id,
+               r.full_name AS recipient_name,
+               d.amount, d.tx_hash, d.status, d.disbursed_at
+        FROM disbursements d
+        JOIN recipients r USING (recipient_id)
+        ORDER BY d.disbursement_id DESC
+        """,
+    )
+    return [dict(r) for r in rows]
+
+
 async def list_by_cycle(pool: asyncpg.Pool, cycle_id: int) -> list:
     rows = await pool.fetch(
         """
-        SELECT disbursement_id, recipient_id, amount, tx_hash, status, disbursed_at
-        FROM disbursements WHERE cycle_id = $1 ORDER BY disbursement_id ASC
+        SELECT d.disbursement_id, d.recipient_id,
+               r.full_name AS recipient_name,
+               d.amount, d.tx_hash, d.status, d.disbursed_at
+        FROM disbursements d
+        JOIN recipients r USING (recipient_id)
+        WHERE d.cycle_id = $1
+        ORDER BY d.disbursement_id ASC
         """,
         cycle_id,
     )

@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+import pathlib
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from db.pool import init_pool, close_pool
 from routers import auth, recipients, cycles, disbursements, funding_pool, audit_log
@@ -40,3 +42,13 @@ app.include_router(cycles.router,       prefix="/api/cycles",       tags=["Disbu
 app.include_router(disbursements.router,prefix="/api/disbursements",tags=["Disbursements"])
 app.include_router(funding_pool.router, prefix="/api/funding-pool", tags=["Funding Pool"])
 app.include_router(audit_log.router,    prefix="/api/audit-log",    tags=["Audit Log"])
+
+# ── Serve built React frontend ────────────────────────────────────────────────
+DIST = pathlib.Path(__file__).parent.parent / "frontend" / "dist"
+
+if DIST.is_dir():
+    app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def spa_fallback(full_path: str):
+        return FileResponse(DIST / "index.html")

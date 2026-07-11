@@ -1,4 +1,5 @@
 import asyncpg
+import os
 from typing import Optional
 from core.config import settings
 
@@ -7,13 +8,17 @@ _pool: Optional[asyncpg.Pool] = None
 
 async def init_pool() -> None:
     global _pool
-    _pool = await asyncpg.create_pool(
-        host=settings.pghost,
-        port=settings.pgport,
-        database=settings.pgdatabase,
-        user=settings.pguser or None,
-        password=settings.pgpassword or None,
-    )
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        _pool = await asyncpg.create_pool(database_url)
+    else:
+        _pool = await asyncpg.create_pool(
+            host=settings.pghost,
+            port=settings.pgport,
+            database=settings.pgdatabase,
+            user=settings.pguser or None,
+            password=settings.pgpassword or None,
+        )
 
 
 async def close_pool() -> None:

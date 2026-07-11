@@ -40,6 +40,18 @@ async def get_cycle(
     return {**cycle, "disbursements": disbursements}
 
 
+@router.get("/{id}/disbursements")
+async def list_cycle_disbursements(
+    id: int,
+    pool: asyncpg.Pool = Depends(get_pool),
+    _: dict = Depends(get_current_admin),
+):
+    cycle = await cycle_crud.find(pool, id)
+    if not cycle:
+        raise HTTPException(status_code=404, detail="Cycle not found.")
+    return await disbursement_crud.list_by_cycle(pool, id)
+
+
 @router.post("", status_code=201)
 async def create_cycle(
     body: CreateCycleRequest,

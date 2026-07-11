@@ -34,7 +34,12 @@ async def get_recipient(
         raise HTTPException(status_code=404, detail="Recipient not found.")
     if current_user["role"] == "recipient" and current_user["recipient_id"] != recipient["recipient_id"]:
         raise HTTPException(status_code=403, detail="Not authorized.")
-    return recipient
+    next_cycle = await pool.fetchrow(
+        "SELECT scheduled_date FROM disbursement_cycles WHERE status = 'pending' ORDER BY scheduled_date ASC LIMIT 1"
+    )
+    result = dict(recipient)
+    result["next_disbursement_date"] = str(next_cycle["scheduled_date"])[:10] if next_cycle else None
+    return result
 
 
 @router.post("", status_code=201)
