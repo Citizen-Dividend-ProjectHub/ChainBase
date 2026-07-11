@@ -1,0 +1,286 @@
+Schema Design
+Document the tables required for your project. For each table, include the name of the table, the field names, and any relevant constraints. Below is an example of a simple todo application's schema.
+
+administrators table
+Field
+Constraints
+administrator_id
+SERIAL PRIMARY KEY
+administrator_name
+TEXT UNIQUE NOT NULL
+password_hash
+TEXT NOT NULL
+administrator_email
+TEXT UNIQUE NOT NULL
+created_at
+TIMESTAMP NOT NULL DEFAULT NOW()
+
+
+
+recipients table
+Field
+Constraints
+recipient_id
+SERIAL PRIMARY KEY
+full_name
+TEXT  NOT NULL
+password_hash
+TEXT NOT NULL
+recipient_email
+TEXT UNIQUE NOT NULL
+is_eligible
+BOOLEAN NOT NULL DEFAULT TRUE
+wallet_address
+VARCHAR(42) UNIQUE NOT NULL
+enrolled_by
+INTEGER REFERENCES administrators(administrator_id) ON DELETE SET NULL
+enrolled_at
+TIMESTAMP NOT NULL DEFAULT NOW()
+revoked_at
+TIMESTAMP DEFAULT NULL
+
+
+disbursement_cycles table
+Field
+Constraints
+cycle_id
+SERIAL PRIMARY KEY
+triggered_by
+INTEGER REFERENCES administrators(administrator_id) ON DELETE SET NULL
+scheduled_date
+NUMBER DEFAULT 0
+triggered_at
+TIMESTAMP DEFAULT NULL
+amount_per_recipient
+NUMERIC(12,2) NOT NULL
+total_recipients
+INTEGER NOT NULL
+status
+TEXT NOT NULL DEFAULT 'pending' pending / processing / completed / failed
+
+
+disbursements table
+Field
+Constraints
+disbursement_id
+SERIAL PRIMARY KEY
+cycle_id
+INTEGER REFERENCES disbursement_cycles(cycle_id) ON DELETE CASCADE
+recipient_id
+INTEGER REFERENCES recipients(recipient_id) ON DELETE CASCADE
+status
+TEXT NOT NULL DEFAULT 'pending' — pending / confirmed / failed
+amount
+NUMERIC(12,2) NOT NULL DEFAULT 0
+tx_hash
+VARCHAR(66) UNIQUE transaction hash, NULL until confirmed
+disbursed_at
+TIMESTAMP 
+
+funding_pool table
+Field
+Constraints
+pool_id
+SERIAL PRIMARY KEY
+balance
+NUMERIC(14,2) NOT NULL DEFAULT 0
+last_synced_at
+TIMESTAMP NOT NULL DEFAULT NOW()
+
+
+
+audit_log table
+Field
+Constraints
+log_id
+SERIAL PRIMARY KEY
+administrator_id
+INTEGER REFERENCES administrators(administrator_id) ON DELETE SET NULL
+action_type
+TEXT NOT NULL — e.g. enroll_recipient / revoke_recipient / trigger_disbursement
+target_recipient_id
+INTEGER REFERENCES recipients(recipient_id) ON DELETE SET NULL
+details
+TEXT
+created_at
+TIMESTAMP NOT NULL DEFAULT NOW()
+
+
+API Contract
+Document each available endpoint for your application including
+The method type and endpoint path (include path parameters)
+A brief description
+Request information including the body structure and any optional query strings. Provide default values for optional request body fields.
+Response information including success/error response structures and status codes
+
+Below is an example of a simple todo application's API contract with three endpoints:
+
+Auth
+POST /api/auth/recipient/register
+Registers a new recipient account with wallet address (pending admin approval).
+Request:
+Body: { full_name, recipient_email, password, wallet_address }
+All fields required.
+Response:
+Success: { recipient_id, full_name, recipient_email, wallet_address, is_eligible } 201
+Error, Validation: { message } 400 — invalid wallet address format, missing field
+Error, Conflict: { message } 409 — email or wallet address already exists
+POST /api/auth/recipient/login
+Authenticates a recipient and returns a session token.
+Request:
+Body: { recipient_email, password }
+Response:
+Success: { token, recipient_id, full_name } 200
+Error, Invalid Credentials: { message } 401
+POST /api/auth/admin/login
+Authenticates an administrator and returns a session token.
+Request:
+Body: { administrator_name, password }
+Response:
+Success: { token, administrator_id, administrator_name } 200
+Error, Invalid Credentials: { message } 401
+
+Recipients
+GET /api/recipients
+Returns all recipients. Admin only.
+Request:
+Body: None
+Optional ?is_eligible=true or ?is_eligible=false query string to filter by eligibility status
+Response:
+Success: [{ recipient_id, full_name, recipient_email, wallet_address, is_eligible, enrolled_at }, {...}, …] 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+GET /api/recipients/:id
+Returns a single recipient's profile, including disbursement history summary. A recipient may only fetch their own record; an admin may fetch any.
+Request:
+Body: None
+Response:
+Success: { recipient_id, full_name, recipient_email, wallet_address, is_eligible, enrolled_at, next_disbursement_date } 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+Error, Not Found: { message } 404
+POST /api/recipients
+Enrolls a new recipient (admin-approved path — distinct from self-registration). Admin only.
+Request:
+Body: { full_name, recipient_email, wallet_address }
+All fields required. is_eligible defaults to true and is not settable on creation.
+Response:
+Success: { recipient_id, full_name, recipient_email, wallet_address, is_eligible } 201
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+Error, Validation: { message } 400
+PATCH /api/recipients/:id/revoke
+Revokes a recipient's eligibility, removing them from future disbursement cycles. Admin only.
+Request:
+Body: None
+Response:
+Success: { recipient_id, is_eligible: false, revoked_at } 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+Error, Not Found: { message } 404
+PATCH /api/recipients/:id/reinstate
+Restores a previously revoked recipient's eligibility. Admin only.
+Request:
+Body: None
+Response:
+Success: { recipient_id, is_eligible: true, revoked_at: null } 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+Error, Not Found: { message } 404
+
+Disbursement Cycles
+GET /api/cycles
+Returns all disbursement cycles. Admin only.
+Request:
+Body: None
+Optional ?status=pending, ?status=processing, ?status=completed, or ?status=failed query string to filter by cycle status
+Response:
+Success: [{ cycle_id, scheduled_date, triggered_at, amount_per_recipient, total_recipients, status }, {...}, …] 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+GET /api/cycles/:id
+Returns a single cycle's details, including the full on-chain disbursement log for that cycle. Admin only.
+Request:
+Body: None
+Response:
+Success: { cycle_id, scheduled_date, triggered_at, amount_per_recipient, total_recipients, status, disbursements: [{ disbursement_id, recipient_id, amount, tx_hash, status, disbursed_at }, {...}] } 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+Error, Not Found: { message } 404
+POST /api/cycles
+Schedules a new disbursement cycle (does not execute it yet). Admin only.
+Request:
+Body: { scheduled_date, amount_per_recipient }
+Both fields required.
+Response:
+Success: { cycle_id, scheduled_date, amount_per_recipient, total_recipients, status: 'pending' } 201
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+Error, Validation: { message } 400
+POST /api/cycles/:id/trigger
+Triggers the smart contract to execute USDC transfers to all eligible recipients in this cycle as a batch. Admin only.
+Request:
+Body: None
+Response:
+Success: { cycle_id, status: 'processing', triggered_at } 202 — processing is async; poll GET /api/cycles/:id for completion
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+Error, Not Found: { message } 404
+Error, Insufficient Funds: { message } 409 — funding pool balance too low to cover cycle
+Error, Already Triggered: { message } 409 — cycle is not in 'pending' status
+
+Disbursements
+GET /api/recipients/:id/disbursements
+Returns a recipient's full disbursement history. A recipient may only fetch their own; an admin may fetch any.
+Request:
+Body: None
+Optional ?limit=20&offset=0 for pagination (defaults: limit=20, offset=0)
+Response:
+Success: [{ disbursement_id, cycle_id, amount, tx_hash, status, disbursed_at }, {...}, …] 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+Error, Not Found: { message } 404
+GET /api/disbursements/:id
+Returns a single disbursement record, including its transaction hash for on-chain verification.
+Request:
+Body: None
+Response:
+Success: { disbursement_id, cycle_id, recipient_id, amount, tx_hash, status, disbursed_at } 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+Error, Not Found: { message } 404
+
+Funding Pool
+GET /api/funding-pool
+Returns the current cached funding pool balance. Admin only.
+Request:
+Body: None
+Response:
+Success: { pool_id, balance, last_synced_at } 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+POST /api/funding-pool/sync
+Re-syncs the cached balance against the on-chain USDC balance. Admin only.
+Request:
+Body: None
+Response:
+Success: { pool_id, balance, last_synced_at } 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+Error, Chain Unreachable: { message } 502
+
+Audit Log
+GET /api/audit-log
+Returns the full audit trail of administrator actions. Admin only.
+Request:
+Body: None
+Optional ?action_type=trigger_disbursement query string to filter by action type
+Optional ?limit=50&offset=0 for pagination (defaults: limit=50, offset=0)
+Response:
+Success: [{ log_id, administrator_id, action_type, target_recipient_id, details, created_at }, {...}, …] 200
+Error, Not Authenticated: { message } 401
+Error, Unauthorized: { message } 403
+
+A couple of design notes worth flagging:
+Async triggering: POST /api/cycles/:id/trigger returns 202 Accepted rather than 200, since a batch on-chain transaction can't complete instantly — the client should poll GET /api/cycles/:id for status.
+Self-registration vs. admin enrollment: I split these into two endpoints (/api/auth/recipient/register and POST /api/recipients) since your user stories describe both a recipient registering themselves and an admin adding/approving wallets — you may want to collapse these into one flow with a pending eligibility state if your actual UX only has one path in.
