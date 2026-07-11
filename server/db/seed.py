@@ -9,13 +9,17 @@ load_dotenv()
 
 
 async def seed() -> None:
-    conn = await asyncpg.connect(
-        host=os.getenv("PGHOST", "127.0.0.1"),
-        port=int(os.getenv("PGPORT", "5432")),
-        database=os.getenv("PGDATABASE", "chainbase"),
-        user=os.getenv("PGUSER") or None,
-        password=os.getenv("PGPASSWORD") or None,
-    )
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        conn = await asyncpg.connect(database_url)
+    else:
+        conn = await asyncpg.connect(
+            host=os.getenv("PGHOST", "127.0.0.1"),
+            port=int(os.getenv("PGPORT", "5432")),
+            database=os.getenv("PGDATABASE", "chainbase"),
+            user=os.getenv("PGUSER") or None,
+            password=os.getenv("PGPASSWORD") or None,
+        )
     try:
         # Clear existing data so the seed is always reproducible
         await conn.execute("TRUNCATE audit_log, disbursements, disbursement_cycles, funding_pool, recipients, administrators RESTART IDENTITY CASCADE")

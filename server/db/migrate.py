@@ -7,13 +7,17 @@ load_dotenv()
 
 
 async def migrate() -> None:
-    conn = await asyncpg.connect(
-        host=os.getenv("PGHOST", "127.0.0.1"),
-        port=int(os.getenv("PGPORT", "5432")),
-        database=os.getenv("PGDATABASE", "chainbase"),
-        user=os.getenv("PGUSER") or None,
-        password=os.getenv("PGPASSWORD") or None,
-    )
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        conn = await asyncpg.connect(database_url)
+    else:
+        conn = await asyncpg.connect(
+            host=os.getenv("PGHOST", "127.0.0.1"),
+            port=int(os.getenv("PGPORT", "5432")),
+            database=os.getenv("PGDATABASE", "chainbase"),
+            user=os.getenv("PGUSER") or None,
+            password=os.getenv("PGPASSWORD") or None,
+        )
     try:
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS administrators (
