@@ -1,6 +1,6 @@
 # ChainBase — Citizens Dividend Platform
 
-**Live site:** https://chainbase.onrender.com
+**Live site:** https://chainbase-17bj.onrender.com
 
 A full-stack blockchain-powered platform that automates and transparently distributes a Citizens Dividend — a universal monthly income. Built with React, FastAPI, and PostgreSQL. Demonstrates JWT-based role authentication, on-chain transaction verification via Etherscan, and a two-role system for admins and recipients.
 
