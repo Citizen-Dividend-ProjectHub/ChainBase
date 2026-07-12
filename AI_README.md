@@ -87,7 +87,7 @@ Base schema from the original spec, with corrections applied. Corrected fields a
 | Field | Constraints |
 |---|---|
 | cycle_id | SERIAL PRIMARY KEY |
-| triggered_by | **TEXT NOT NULL DEFAULT 'scheduler'** — *(was incorrectly an FK to administrators; cycles are scheduler-triggered, not admin-triggered)* |
+| triggered_by | **TEXT NOT NULL DEFAULT 'scheduler'** — *(was incorrectly an FK to administrators; cycles are scheduler-triggered, not admin-triggered. Applied in `server/db/migrate.py`/`migrate.js`.)* |
 | scheduled_date | **DATE / TIMESTAMP** — *(was incorrectly `NUMBER DEFAULT 0`)* |
 | triggered_at | TIMESTAMP DEFAULT NULL |
 | amount_per_recipient | NUMERIC(12,2) NOT NULL |
@@ -103,7 +103,7 @@ Base schema from the original spec, with corrections applied. Corrected fields a
 | recipient_id | INTEGER REFERENCES recipients(recipient_id) ON DELETE CASCADE |
 | status | TEXT NOT NULL DEFAULT 'pending' — pending / confirmed / failed |
 | amount | NUMERIC(12,2) NOT NULL DEFAULT 0 |
-| tx_hash | VARCHAR(66) UNIQUE — transaction hash, NULL until confirmed |
+| tx_hash | **VARCHAR(66), UNIQUE(tx_hash, recipient_id)** — *(corrected)* transaction hash, NULL until confirmed. The Distributor contract's `disburseBatch` (see `contracts/CLAUDE.md`) executes an entire cycle in one on-chain transaction, so every disbursement row in a cycle shares the same `tx_hash` — a bare `UNIQUE` on this column alone would break that. Applied in both `server/db/migrate.py` and `migrate.js`. |
 | disbursed_at | TIMESTAMP |
 
 **funding_pool**
@@ -200,7 +200,13 @@ Stretch features from the spec (email/in-app payment notifications, idle-balance
 ## 8. Open / In-Progress
 
 - **AI feature integration** — not yet finalized. Leading candidate: a plain-language transaction explainer for recipients (low scope, high alignment with transparency/dignity values). Other options considered: recipient onboarding chatbot, admin natural-language query tool, anomaly flagging. If building an AI feature here: **never have a model generate and directly execute raw SQL** — deterministic code handles logic/queries, the model only summarizes structured output. Provider candidates: Google Gemini, Groq, Ollama, OpenRouter.
-- Sandbox/parallel dev environment for Mark's blockchain layer, using Claude Code with a `CLAUDE.md` for session persistence. Sandbox scope: Solidity Distributor contract, mock ERC-20 token, Python/APScheduler automation script, optional MetaMask frontend.
+- **Blockchain layer (Mark's sandbox) — contracts and automation are done.**
+  - `contracts/` — `MockUSDC.sol` (test-only ERC-20, 6 decimals) and `Distributor.sol` (on-chain eligibility registry, live funding-pool balance check via `poolBalance()`, batched USDC disbursement via `disburseBatch`, plus `Pausable`/`ReentrancyGuard`). Hardhat test suite passes (12/12). `scripts/deploy.py` (Python — reads Hardhat's compiled `artifacts/`, sends the deploy txs via web3.py) deploys locally or to Sepolia and writes `contracts/deployments/<network>.json` (`{ address, abi }` per contract). Compiling and testing the Solidity itself still runs through Hardhat/Node (`hardhat.config.js`, `test/*.test.js`) — that part of the toolchain doesn't have a practical Python equivalent. See `contracts/CLAUDE.md` for design details and rationale.
+  - `server/chain/`, `server/scheduler/` — the Python/APScheduler automation that actually drives disbursement. `chain/client.py` is a Web3.py wrapper around the Distributor contract (reads `contracts/deployments/<chain_network>.json`); `scheduler/disbursement_job.py` is the monthly cycle logic (`run_disbursement_cycle`), wired into `server/main.py`'s FastAPI `lifespan` via `scheduler/scheduler.py` (`AsyncIOScheduler` + `CronTrigger`, controlled by `settings.scheduler_enabled`/`disbursement_cron_day`/`disbursement_cron_hour`). `server/scripts/run_disbursement_cycle.py` runs one cycle immediately for manual testing/demos. New config in `core/config.py`: `rpc_url`, `deployer_private_key`, `chain_network`, `cycle_amount_per_recipient`. **`scheduler_enabled` defaults to `False`** — the API boots normally without any chain setup for anyone not touching the blockchain layer; set it (and the RPC/key/network vars) in `.env` to actually turn the scheduler on.
+    - **Eligibility sync design:** nothing calls the contract's `enrollRecipient`/`revokeRecipient` when an admin acts via `/api/recipients`. Instead, `run_disbursement_cycle` reconciles the on-chain registry against the DB's `is_eligible` at the start of every run (free `isEligible` view call per recipient; a transaction is only sent for the ones that actually changed). This keeps eligibility correct at the moment it matters without touching the recipient endpoints.
+    - **Verified so far:** the full chain-side path (enroll/revoke, `poolBalance`, `disburseBatch` paying eligible/skipping ineligible, insufficient-funds revert) against a local Hardhat node. **Not yet verified:** the DB-writing half (`run_disbursement_cycle`'s cycle/disbursement/funding_pool/audit_log writes) end-to-end, since this sandbox has no Postgres available. Whoever has a local Postgres set up (`server/db/migrate.py` + `seed.py`) should run `python -m scripts.run_disbursement_cycle` from `server/` once, both with a funded and an underfunded pool, to confirm the DB side before relying on this in the real flow.
+  - Still open: wiring `poolBalance()` into `POST /api/funding-pool/sync`, and the optional MetaMask connection piece.
+  - **Heads-up for Josh:** this work touched files in `server/` you own — `main.py`, `core/config.py`, `requirements.txt`, `crud/disbursement.py` (added `record_cycle_results`), and both `db/migrate.py`/`migrate.js` (applied the `triggered_by`/`tx_hash` corrections from §4, which your migration scripts hadn't picked up yet — worth a look before you next run them somewhere with existing data).
 
 ---
 
@@ -208,4 +214,4 @@ Stretch features from the spec (email/in-app payment notifications, idle-balance
 
 - Prefer **explanation-before-implementation** — explain what a component does and why before writing code.
 - Treat the decisions in §3 as settled; don't re-propose custom tokens, admin-triggered disbursement, or additional roles unless the person explicitly reopens that decision.
-- This file describes the **whole project's** scope. If you're working specifically in Mark's sandbox (blockchain layer), your effective scope is narrower: the Solidity contract, mock ERC-20, the disbursement automation script, and optionally the MetaMask connection piece — not the full frontend/backend.
+- This file describes the **whole project's** scope. If you're working specifically in Mark's sandbox (blockchain layer), your effective scope is narrower: the Solidity contract, mock ERC-20, the disbursement automation script, and optionally the MetaMask connection piece — not the full frontend/backend.   

@@ -5,14 +5,22 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from chain.client import init_chain_client
+from core.config import settings
 from db.pool import init_pool, close_pool
 from routers import auth, recipients, cycles, disbursements, funding_pool, audit_log
+from scheduler.scheduler import start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_pool()
+    if settings.scheduler_enabled:
+        chain_client = init_chain_client()
+        start_scheduler(chain_client)
     yield
+    if settings.scheduler_enabled:
+        stop_scheduler()
     await close_pool()
 
 
