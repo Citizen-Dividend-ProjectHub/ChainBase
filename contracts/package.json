@@ -1,0 +1,20 @@
+{
+  "name": "chainbase-contracts",
+  "version": "1.0.0",
+  "description": "ChainBase Distributor contract, mock USDC, and deployment tooling",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "python3 scripts/deploy.py --network localhost",
+    "deploy:sepolia": "python3 scripts/deploy.py --network sepolia",
+    "node": "hardhat node"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2"
+  }
+}

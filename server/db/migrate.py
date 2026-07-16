@@ -46,7 +46,7 @@ async def migrate() -> None:
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS disbursement_cycles (
                 cycle_id             SERIAL PRIMARY KEY,
-                triggered_by         INTEGER REFERENCES administrators(administrator_id) ON DELETE SET NULL,
+                triggered_by         TEXT NOT NULL DEFAULT 'scheduler',
                 scheduled_date       TIMESTAMP NOT NULL,
                 triggered_at         TIMESTAMP DEFAULT NULL,
                 amount_per_recipient NUMERIC(12,2) NOT NULL,
@@ -62,8 +62,9 @@ async def migrate() -> None:
                 recipient_id    INTEGER REFERENCES recipients(recipient_id) ON DELETE CASCADE,
                 status          TEXT NOT NULL DEFAULT 'pending',
                 amount          NUMERIC(12,2) NOT NULL DEFAULT 0,
-                tx_hash         VARCHAR(66) UNIQUE,
-                disbursed_at    TIMESTAMP
+                tx_hash         VARCHAR(66),
+                disbursed_at    TIMESTAMP,
+                UNIQUE (tx_hash, recipient_id)
             )
         """)
 
