@@ -1,6 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Sidebar from './components/Sidebar'
+import Landing from './pages/Landing'
 import Login from './pages/Login'
 import AdminLogin from './pages/AdminLogin'
 import Register from './pages/Register'
@@ -34,7 +35,11 @@ function ComingSoon({ title }) {
 
 function ProtectedLayout() {
   const { token } = useAuth()
-  if (!token) return <Navigate to="/login" replace />
+  const location = useLocation()
+  if (!token) {
+    if (location.pathname === '/') return <Landing />
+    return <Navigate to="/login" replace />
+  }
   return (
     <div className="layout">
       <Sidebar />

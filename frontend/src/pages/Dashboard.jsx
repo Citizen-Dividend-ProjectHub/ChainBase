@@ -159,7 +159,7 @@ function RecipientDashboard({ token, userId, userName }) {
         {wallet && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            background: 'rgba(63,185,80,0.08)', border: '1px solid var(--green)',
+            background: 'rgba(59,130,246,0.08)', border: '1px solid var(--green)',
             borderRadius: 20, padding: '5px 12px', fontSize: 12,
             color: 'var(--green-bright)', fontFamily: 'monospace',
           }}>
@@ -213,7 +213,7 @@ function RecipientDashboard({ token, userId, userName }) {
           <span className="card-title">Payment History</span>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            background: 'rgba(63,185,80,0.08)', border: '1px solid var(--green)',
+            background: 'rgba(59,130,246,0.08)', border: '1px solid var(--green)',
             borderRadius: 20, padding: '4px 12px', fontSize: 11, color: 'var(--green-bright)',
           }}>
             <span>✓</span> Auto-disbursed 1st of month

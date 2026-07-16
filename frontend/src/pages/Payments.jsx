@@ -79,7 +79,7 @@ export default function Payments() {
         {wallet && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            background: 'rgba(63,185,80,0.08)', border: '1px solid var(--green)',
+            background: 'rgba(59,130,246,0.08)', border: '1px solid var(--green)',
             borderRadius: 20, padding: '6px 14px', fontSize: 12,
             color: 'var(--green-bright)', fontFamily: 'monospace',
           }}>
