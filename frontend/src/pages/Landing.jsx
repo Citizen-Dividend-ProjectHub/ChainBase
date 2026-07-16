@@ -97,7 +97,7 @@ export default function Landing() {
           z-index: 0;
         }
         .landing-blob-a { width: 420px; height: 420px; background: var(--green-bright); top: -140px; left: -110px; animation: landing-float 11s ease-in-out infinite; }
-        .landing-blob-b { width: 380px; height: 380px; background: #58a6ff; top: 60px; right: -130px; animation: landing-float 13s ease-in-out infinite reverse; }
+        .landing-blob-b { width: 380px; height: 380px; background: var(--green); top: 60px; right: -130px; animation: landing-float 13s ease-in-out infinite reverse; }
         .landing-blob-c { width: 300px; height: 300px; background: var(--yellow); bottom: -160px; left: 38%; opacity: 0.22; animation: landing-float 15s ease-in-out infinite; animation-delay: -4s; }
 
         .landing-nav {
@@ -127,7 +127,7 @@ export default function Landing() {
           display: inline-flex;
           align-items: center;
           gap: 7px;
-          background: rgba(59,130,246,0.08);
+          background: rgba(63,185,80,0.08);
           border: 1px solid var(--green);
           border-radius: 20px;
           padding: 6px 14px;
@@ -181,7 +181,7 @@ export default function Landing() {
           border-radius: 8px;
           transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
         }
-        .landing-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(59,130,246,0.45); opacity: 1; }
+        .landing-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(35,134,54,0.5); opacity: 1; }
         .landing-btn-outline:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,255,255,0.08); }
 
         .landing-scroll-cue {

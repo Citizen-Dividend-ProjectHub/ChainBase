@@ -5,8 +5,8 @@
   --bg-2:      #161b22;
   --bg-card:   #1c2333;
   --border:    #30363d;
-  --green:     #1d4ed8;
-  --green-bright: #3b82f6;
+  --green:     #238636;
+  --green-bright: #3fb950;
   --text:      #e6edf3;
   --text-muted:#8b949e;
   --red:       #f85149;
@@ -85,7 +85,7 @@ body {
 
 .nav-item.active {
   color: var(--green-bright);
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(63, 185, 80, 0.1);
   border-left-color: var(--green-bright);
 }
 
@@ -261,7 +261,7 @@ tbody tr:hover td { background: rgba(255,255,255,0.03); }
   text-transform: capitalize;
 }
 
-.badge-green    { background: rgba(59,130,246,0.12);  color: var(--green-bright); }
+.badge-green    { background: rgba(63,185,80,0.12);   color: var(--green-bright); }
 .badge-yellow   { background: rgba(210,153,34,0.12); color: var(--yellow); }
 .badge-red      { background: rgba(248,81,73,0.12);  color: var(--red); }
 .badge-gray     { background: rgba(139,148,158,0.12);color: var(--text-muted); }

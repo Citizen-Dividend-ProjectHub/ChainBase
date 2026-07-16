@@ -79,7 +79,7 @@ export default function Payments() {
         {wallet && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            background: 'rgba(59,130,246,0.08)', border: '1px solid var(--green)',
+            background: 'rgba(63,185,80,0.08)', border: '1px solid var(--green)',
             borderRadius: 20, padding: '6px 14px', fontSize: 12,
             color: 'var(--green-bright)', fontFamily: 'monospace',
           }}>
@@ -174,7 +174,7 @@ export default function Payments() {
                           target="_blank"
                           rel="noreferrer"
                           className="td-mono"
-                          style={{ color: '#58a6ff', textDecoration: 'none' }}
+                          style={{ color: 'var(--green-bright)', textDecoration: 'none' }}
                           title={d.tx_hash}
                         >
                           {d.tx_hash.slice(0, 10)}…{d.tx_hash.slice(-6)}

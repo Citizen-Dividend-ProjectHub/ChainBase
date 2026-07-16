@@ -107,7 +107,7 @@ export default function Register() {
               {walletConnected ? (
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 8,
-                  background: 'rgba(59,130,246,0.1)', border: '1px solid var(--green)',
+                  background: 'rgba(63,185,80,0.08)', border: '1px solid var(--green)',
                   borderRadius: 'var(--radius)', padding: '8px 12px', fontSize: 13,
                   color: 'var(--green-bright)',
                 }}>
@@ -129,7 +129,7 @@ export default function Register() {
                   marginTop: 10,
                   width: '100%',
                   padding: '9px 14px',
-                  background: '#1a73e8',
+                  background: 'var(--green)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: 'var(--radius)',
