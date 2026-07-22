@@ -10,6 +10,10 @@ export function AuthProvider({ children }) {
   const [userName, setUserName] = useState(() => localStorage.getItem('cb_username') ?? null)
   const [isVerified, setIsVerified] = useState(() => localStorage.getItem('cb_verified') === 'true')
   const [verificationStatus, setVerificationStatus] = useState(() => localStorage.getItem('cb_verification_status') ?? null)
+  // Set right after registration so VerificationGate can auto-open the modal once
+  // the app redirects there — Register.jsx itself gets unmounted by PublicRoute
+  // the instant login() sets a token, so it can never render this modal itself.
+  const [pendingVerificationUrl, setPendingVerificationUrl] = useState(null)
 
   function login(newToken, newRole, newUserId, newUserName) {
     localStorage.setItem('cb_token',    newToken)
@@ -62,6 +66,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={{
       token, role, userId, userName, isVerified, verificationStatus,
       login, logout, refreshMe,
+      pendingVerificationUrl, setPendingVerificationUrl,
     }}>
       {children}
     </AuthContext.Provider>

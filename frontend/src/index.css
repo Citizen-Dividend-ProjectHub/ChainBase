@@ -298,6 +298,29 @@ tbody tr:hover td { background: rgba(255,255,255,0.03); }
 .modal-wide { max-width: 520px; }
 .modal-iframe { width: 100%; height: 640px; border: none; border-radius: var(--radius); margin-bottom: 16px; }
 
+/* ── Onboarding step indicator ── */
+.onboarding-steps { display: flex; align-items: center; margin-bottom: 24px; }
+
+.onboarding-step { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+.onboarding-step-dot {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  background: var(--bg-card); border: 1px solid var(--border); color: var(--text-muted);
+}
+
+.onboarding-step-label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+
+.onboarding-step.active .onboarding-step-dot { background: var(--green-bright); border-color: var(--green-bright); color: #fff; }
+.onboarding-step.active .onboarding-step-label { color: var(--text); font-weight: 500; }
+
+.onboarding-step.done .onboarding-step-dot { background: var(--green); border-color: var(--green); color: #fff; }
+.onboarding-step.done .onboarding-step-label { color: var(--text-muted); }
+
+.onboarding-step-line { flex: 1; height: 1px; background: var(--border); margin: 0 8px; }
+.onboarding-step-line.done { background: var(--green); }
+
 /* ── Form ── */
 .form-group { margin-bottom: 16px; }
 

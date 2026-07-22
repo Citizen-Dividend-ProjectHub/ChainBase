@@ -27,7 +27,7 @@ const COPY = {
 }
 
 export default function VerificationGate({ status }) {
-  const { token, refreshMe, logout } = useAuth()
+  const { token, refreshMe, logout, pendingVerificationUrl, setPendingVerificationUrl } = useAuth()
   const [verificationUrl, setVerificationUrl] = useState(null)
   const [err, setErr] = useState('')
   const [starting, setStarting] = useState(false)
@@ -39,6 +39,14 @@ export default function VerificationGate({ status }) {
     }, 4000)
     return () => clearInterval(pollRef.current)
   }, [token, refreshMe])
+
+  useEffect(() => {
+    if (pendingVerificationUrl) {
+      setVerificationUrl(pendingVerificationUrl)
+      setPendingVerificationUrl(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function startVerification() {
     setErr('')
