@@ -9,7 +9,7 @@ from core.security import create_token
 from db.pool import get_pool
 from dependencies import get_current_recipient, get_optional_user
 from didit.client import DiditError, create_verification_session
-from schemas.auth import AdminLoginRequest, RecipientLoginRequest, RecipientRegisterRequest
+from schemas.auth import AdminLoginRequest, RecipientLoginRequest, RecipientRegisterRequest, WalletRotationRequest
 from utils import WALLET_RE
 
 router = APIRouter()
@@ -57,8 +57,8 @@ async def start_or_resume_verification(
     recipient = await recipient_crud.find(pool, current["recipient_id"])
     if not recipient:
         raise HTTPException(status_code=404, detail="Recipient not found.")
-    if recipient["verification_status"] == "approved":
-        raise HTTPException(status_code=409, detail="Already verified.")
+    if recipient["verification_status"] in ("approved", "name_change_review"):
+        raise HTTPException(status_code=409, detail="Already verified or under review.")
     if not settings.didit_enabled:
         raise HTTPException(status_code=503, detail="Identity verification is not configured.")
     try:
@@ -66,6 +66,65 @@ async def start_or_resume_verification(
     except DiditError:
         raise HTTPException(status_code=502, detail="Could not start verification session. Try again shortly.")
     await recipient_crud.set_didit_session(pool, recipient["recipient_id"], session["session_id"])
+    return {"verification_url": session["verification_url"]}
+
+
+@router.post("/recipient/wallet-rotation")
+async def wallet_rotation(
+    body: WalletRotationRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    if not WALLET_RE.match(body.new_wallet_address):
+        raise HTTPException(status_code=400, detail="Invalid wallet address format.")
+    recipient = await recipient_crud.find(pool, current["recipient_id"])
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if recipient["verification_status"] != "approved":
+        raise HTTPException(status_code=409, detail="Only verified recipients can rotate their wallet.")
+    if await recipient_crud.wallet_address_in_use(pool, body.new_wallet_address, recipient["recipient_id"]):
+        raise HTTPException(status_code=409, detail="Wallet address already in use.")
+    if not settings.didit_enabled:
+        raise HTTPException(status_code=503, detail="Identity verification is not configured.")
+
+    workflow_id = settings.didit_wallet_rotation_workflow_id or settings.didit_workflow_id
+    reference = recipient.get("original_didit_session_id") or recipient.get("didit_session_id")
+    try:
+        session = await create_verification_session(
+            recipient["recipient_id"], workflow_id=workflow_id, reference_session_id=reference,
+        )
+    except DiditError:
+        raise HTTPException(status_code=502, detail="Could not start verification session. Try again shortly.")
+
+    await recipient_crud.set_pending_wallet_address(pool, recipient["recipient_id"], body.new_wallet_address)
+    await recipient_crud.set_didit_session(
+        pool, recipient["recipient_id"], session["session_id"], purpose="wallet_rotation",
+    )
+    return {"verification_url": session["verification_url"]}
+
+
+@router.post("/recipient/reverify")
+async def reverify_identity(
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    recipient = await recipient_crud.find(pool, current["recipient_id"])
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if recipient["verification_status"] != "approved":
+        raise HTTPException(status_code=409, detail="Only verified recipients can request reverification.")
+    if not settings.didit_enabled:
+        raise HTTPException(status_code=503, detail="Identity verification is not configured.")
+
+    reference = recipient.get("original_didit_session_id") or recipient.get("didit_session_id")
+    try:
+        session = await create_verification_session(recipient["recipient_id"], reference_session_id=reference)
+    except DiditError:
+        raise HTTPException(status_code=502, detail="Could not start verification session. Try again shortly.")
+
+    await recipient_crud.set_didit_session(
+        pool, recipient["recipient_id"], session["session_id"], purpose="reverification",
+    )
     return {"verification_url": session["verification_url"]}
 
 

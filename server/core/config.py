@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     didit_workflow_id: str = ""
     didit_webhook_secret: str = ""
     didit_base_url: str = "https://apx.didit.me"
+    didit_wallet_rotation_workflow_id: str = ""  # optional lightweight selfie-only workflow; falls back to didit_workflow_id
 
 
 settings = Settings()

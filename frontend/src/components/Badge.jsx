@@ -11,6 +11,7 @@ const MAP = {
   ineligible:'badge-red',
   declined:  'badge-red',
   flagged_duplicate: 'badge-red',
+  name_change_review: 'badge-yellow',
   cancelled: 'badge-gray',
   draft:     'badge-gray',
   queued:    'badge-blue',

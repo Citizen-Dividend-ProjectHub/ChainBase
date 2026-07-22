@@ -10,3 +10,7 @@ class EnrollRecipientRequest(BaseModel):
 
 class ResolveDuplicateRequest(BaseModel):
     action: Literal["approve", "reject"]
+
+
+class ResolveNameChangeRequest(BaseModel):
+    action: Literal["approve", "reject"]

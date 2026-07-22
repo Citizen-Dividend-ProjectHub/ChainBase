@@ -61,6 +61,33 @@ const migrate = async () => {
   `);
 
   await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS didit_session_purpose TEXT NOT NULL DEFAULT 'registration'
+  `);
+  await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS original_didit_session_id TEXT
+  `);
+  await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS pending_wallet_address VARCHAR(42)
+  `);
+  await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS pending_identity_hash TEXT
+  `);
+  await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS pending_verification_details TEXT
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_recipients_pending_wallet_address
+      ON recipients (pending_wallet_address) WHERE pending_wallet_address IS NOT NULL
+  `);
+
+  await pool.query(`
+    UPDATE recipients
+       SET original_didit_session_id = didit_session_id
+     WHERE original_didit_session_id IS NULL AND didit_session_id IS NOT NULL
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS didit_webhook_events (
       event_id    TEXT PRIMARY KEY,
       session_id  TEXT,

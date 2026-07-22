@@ -20,6 +20,10 @@ const COPY = {
     title: 'Under review',
     body: 'Your account is under review by our team. We\'ll follow up by email once it\'s resolved.',
   },
+  name_change_review: {
+    title: 'Reviewing your updated documents',
+    body: 'We noticed your new documents don\'t fully match what we have on file. Our team is reviewing the change manually — we\'ll follow up by email once it\'s resolved.',
+  },
 }
 
 export default function VerificationGate({ status }) {

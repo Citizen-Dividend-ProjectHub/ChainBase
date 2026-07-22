@@ -13,6 +13,10 @@ class RecipientLoginRequest(BaseModel):
     password: str
 
 
+class WalletRotationRequest(BaseModel):
+    new_wallet_address: str
+
+
 class AdminLoginRequest(BaseModel):
     administrator_name: str
     password: str

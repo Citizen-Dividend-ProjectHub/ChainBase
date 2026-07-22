@@ -3,6 +3,7 @@ import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 import StatCard from '../components/StatCard'
 import Badge from '../components/Badge'
+import NameChangeReviewModal from '../components/NameChangeReviewModal'
 
 function shortWallet(w) {
   if (!w) return '—'
@@ -21,6 +22,7 @@ export default function Recipients() {
   const [form, setForm]             = useState({ full_name: '', recipient_email: '', wallet_address: '' })
   const [formErr, setFormErr]       = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [reviewing, setReviewing]   = useState(null)
 
   useEffect(() => {
     async function load() {
@@ -57,6 +59,20 @@ export default function Recipients() {
       setRecipients(prev => prev.map(x =>
         x.recipient_id === r.recipient_id ? { ...x, ...updated } : x
       ))
+    } catch (e) { setActionErr(e.message) }
+  }
+
+  async function resolveNameChange(r, action) {
+    setActionErr('')
+    try {
+      const updated = await apiFetch(`/recipients/${r.recipient_id}/resolve-name-change`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action }),
+      }, token)
+      setRecipients(prev => prev.map(x =>
+        x.recipient_id === r.recipient_id ? { ...x, ...updated } : x
+      ))
+      setReviewing(null)
     } catch (e) { setActionErr(e.message) }
   }
 
@@ -140,6 +156,7 @@ export default function Recipients() {
               <option value="approved">Approved</option>
               <option value="declined">Declined</option>
               <option value="flagged_duplicate">Flagged</option>
+              <option value="name_change_review">Name change review</option>
             </select>
           </div>
         </div>
@@ -168,6 +185,8 @@ export default function Recipients() {
                         <button className="btn btn-sm btn-green" onClick={() => resolveDuplicate(r, 'approve')}>Approve</button>
                         <button className="btn btn-sm btn-red" onClick={() => resolveDuplicate(r, 'reject')}>Reject</button>
                       </div>
+                    ) : r.verification_status === 'name_change_review' ? (
+                      <button className="btn btn-sm btn-outline" onClick={() => setReviewing(r)}>Review</button>
                     ) : (
                       <button
                         className={`btn btn-sm ${r.is_eligible ? 'btn-red' : 'btn-green'}`}
@@ -217,6 +236,14 @@ export default function Recipients() {
             </form>
           </div>
         </div>
+      )}
+
+      {reviewing && (
+        <NameChangeReviewModal
+          recipient={reviewing}
+          onResolve={action => resolveNameChange(reviewing, action)}
+          onClose={() => setReviewing(null)}
+        />
       )}
     </>
   )

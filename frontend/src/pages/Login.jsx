@@ -13,7 +13,7 @@ const blobStyle = `
 `
 
 export default function Login() {
-  const { login } = useAuth()
+  const { login, refreshMe } = useAuth()
   const navigate   = useNavigate()
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
@@ -30,6 +30,7 @@ export default function Login() {
         body: JSON.stringify({ recipient_email: email, password }),
       })
       login(data.token, 'recipient', data.recipient_id, data.full_name)
+      await refreshMe(data.token)
       navigate('/')
     } catch (e) {
       setErr(e.message)

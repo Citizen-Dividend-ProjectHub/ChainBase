@@ -5,7 +5,9 @@ from core.security import hash_password, verify_password
 
 RECIPIENT_FIELDS = """
     recipient_id, full_name, recipient_email, wallet_address, is_eligible, enrolled_at,
-    is_verified, verification_status, didit_session_id
+    is_verified, verification_status, didit_session_id, didit_session_purpose,
+    identity_hash, verification_details, verified_at,
+    pending_wallet_address, pending_identity_hash, pending_verification_details
 """
 
 
@@ -69,10 +71,12 @@ async def find_by_didit_session(pool: asyncpg.Pool, session_id: str) -> Optional
     return dict(row) if row else None
 
 
-async def set_didit_session(pool: asyncpg.Pool, recipient_id: int, session_id: str) -> None:
+async def set_didit_session(
+    pool: asyncpg.Pool, recipient_id: int, session_id: str, purpose: str = "registration"
+) -> None:
     await pool.execute(
-        "UPDATE recipients SET didit_session_id = $2 WHERE recipient_id = $1",
-        recipient_id, session_id,
+        "UPDATE recipients SET didit_session_id = $2, didit_session_purpose = $3 WHERE recipient_id = $1",
+        recipient_id, session_id, purpose,
     )
 
 
@@ -92,6 +96,7 @@ async def set_verification_result(
            SET verification_status = $2, is_verified = $3, is_eligible = $4,
                identity_hash = COALESCE($5, identity_hash),
                verification_details = COALESCE($6, verification_details),
+               original_didit_session_id = COALESCE(original_didit_session_id, didit_session_id),
                verified_at = CASE WHEN $3 THEN NOW() ELSE verified_at END
          WHERE recipient_id = $1
         RETURNING recipient_id, verification_status, is_verified, is_eligible
@@ -99,6 +104,104 @@ async def set_verification_result(
         recipient_id, verification_status, is_verified, is_eligible,
         identity_hash, verification_details,
     )
+    return dict(row) if row else None
+
+
+async def wallet_address_in_use(pool: asyncpg.Pool, wallet_address: str, exclude_recipient_id: int) -> bool:
+    row = await pool.fetchrow(
+        """
+        SELECT 1 FROM recipients
+         WHERE (wallet_address = $1 OR pending_wallet_address = $1) AND recipient_id != $2
+         LIMIT 1
+        """,
+        wallet_address, exclude_recipient_id,
+    )
+    return row is not None
+
+
+async def set_pending_wallet_address(pool: asyncpg.Pool, recipient_id: int, pending_wallet_address: str) -> None:
+    await pool.execute(
+        "UPDATE recipients SET pending_wallet_address = $2 WHERE recipient_id = $1",
+        recipient_id, pending_wallet_address,
+    )
+
+
+async def clear_pending_wallet_address(pool: asyncpg.Pool, recipient_id: int) -> None:
+    await pool.execute(
+        "UPDATE recipients SET pending_wallet_address = NULL WHERE recipient_id = $1",
+        recipient_id,
+    )
+
+
+async def apply_wallet_rotation(pool: asyncpg.Pool, recipient_id: int) -> Optional[dict]:
+    """Moves pending_wallet_address -> wallet_address. Can raise
+    asyncpg.UniqueViolationError on a race with another recipient claiming
+    the same address — the caller must handle that explicitly.
+    """
+    row = await pool.fetchrow(
+        """
+        UPDATE recipients
+           SET wallet_address = pending_wallet_address, pending_wallet_address = NULL
+         WHERE recipient_id = $1 AND pending_wallet_address IS NOT NULL
+        RETURNING recipient_id, wallet_address
+        """,
+        recipient_id,
+    )
+    return dict(row) if row else None
+
+
+async def set_pending_name_change(
+    pool: asyncpg.Pool, recipient_id: int, pending_identity_hash: str, pending_verification_details: str
+) -> Optional[dict]:
+    """Leaves identity_hash/verification_details untouched as the 'old' side
+    of the admin comparison, and pauses is_verified/is_eligible until an
+    admin resolves it — this could be a legitimate name change or an
+    account takeover, so it's treated cautiously like flagged_duplicate.
+    """
+    row = await pool.fetchrow(
+        """
+        UPDATE recipients
+           SET verification_status = 'name_change_review', is_verified = FALSE, is_eligible = FALSE,
+               pending_identity_hash = $2, pending_verification_details = $3
+         WHERE recipient_id = $1
+        RETURNING recipient_id, verification_status, is_verified, is_eligible
+        """,
+        recipient_id, pending_identity_hash, pending_verification_details,
+    )
+    return dict(row) if row else None
+
+
+async def resolve_name_change(pool: asyncpg.Pool, recipient_id: int, approve: bool) -> Optional[dict]:
+    """Approve applies the pending identity data and restores approved status.
+    Reject discards the pending data (keeping the old identity_hash) and
+    restores approved status the same way — either way the recipient ends
+    up verified/eligible again.
+    """
+    if approve:
+        row = await pool.fetchrow(
+            """
+            UPDATE recipients
+               SET verification_status = 'approved', is_verified = TRUE, is_eligible = TRUE,
+                   identity_hash = pending_identity_hash,
+                   verification_details = pending_verification_details,
+                   pending_identity_hash = NULL, pending_verification_details = NULL,
+                   verified_at = NOW()
+             WHERE recipient_id = $1
+            RETURNING recipient_id, verification_status, is_verified, is_eligible, identity_hash
+            """,
+            recipient_id,
+        )
+    else:
+        row = await pool.fetchrow(
+            """
+            UPDATE recipients
+               SET verification_status = 'approved', is_verified = TRUE, is_eligible = TRUE,
+                   pending_identity_hash = NULL, pending_verification_details = NULL
+             WHERE recipient_id = $1
+            RETURNING recipient_id, verification_status, is_verified, is_eligible, identity_hash
+            """,
+            recipient_id,
+        )
     return dict(row) if row else None
 
 

@@ -8,7 +8,7 @@ import crud.disbursement as disbursement_crud
 import crud.audit_log as audit_log_crud
 from db.pool import get_pool
 from dependencies import get_current_admin, get_current_user
-from schemas.recipient import EnrollRecipientRequest, ResolveDuplicateRequest
+from schemas.recipient import EnrollRecipientRequest, ResolveDuplicateRequest, ResolveNameChangeRequest
 from utils import WALLET_RE
 
 router = APIRouter()
@@ -116,6 +116,29 @@ async def resolve_duplicate(
         pool, admin["admin_id"],
         "duplicate_override_approved" if approve else "duplicate_override_rejected",
         id, f"Admin {'approved' if approve else 'rejected'} flagged duplicate for {recipient['full_name']}",
+    )
+    return updated
+
+
+@router.patch("/{id}/resolve-name-change")
+async def resolve_name_change(
+    id: int,
+    body: ResolveNameChangeRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    admin: dict = Depends(get_current_admin),
+):
+    recipient = await recipient_crud.find(pool, id)
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if recipient["verification_status"] != "name_change_review":
+        raise HTTPException(status_code=409, detail="Recipient is not pending a name-change review.")
+
+    approve = body.action == "approve"
+    updated = await recipient_crud.resolve_name_change(pool, id, approve)
+    await audit_log_crud.create(
+        pool, admin["admin_id"],
+        "name_change_approved" if approve else "name_change_rejected",
+        id, f"Admin {'approved' if approve else 'rejected'} legal name/document change for {recipient['full_name']}",
     )
     return updated
 
