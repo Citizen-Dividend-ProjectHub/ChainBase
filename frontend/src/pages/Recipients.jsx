@@ -13,6 +13,7 @@ export default function Recipients() {
   const { token } = useAuth()
   const [recipients, setRecipients] = useState([])
   const [filter, setFilter]         = useState('all')
+  const [verificationFilter, setVerificationFilter] = useState('all')
   const [loading, setLoading]       = useState(true)
   const [err, setErr]               = useState('')
   const [actionErr, setActionErr]   = useState('')
@@ -46,6 +47,19 @@ export default function Recipients() {
     } catch (e) { setActionErr(e.message) }
   }
 
+  async function resolveDuplicate(r, action) {
+    setActionErr('')
+    try {
+      const updated = await apiFetch(`/recipients/${r.recipient_id}/resolve-duplicate`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action }),
+      }, token)
+      setRecipients(prev => prev.map(x =>
+        x.recipient_id === r.recipient_id ? { ...x, ...updated } : x
+      ))
+    } catch (e) { setActionErr(e.message) }
+  }
+
   async function enroll(e) {
     e.preventDefault()
     setFormErr('')
@@ -68,10 +82,12 @@ export default function Recipients() {
   const total      = recipients.length
   const eligible   = recipients.filter(r => r.is_eligible).length
   const ineligible = total - eligible
+  const flagged    = recipients.filter(r => r.verification_status === 'flagged_duplicate').length
 
-  const visible = filter === 'all'     ? recipients
-               : filter === 'eligible' ? recipients.filter(r => r.is_eligible)
-               :                         recipients.filter(r => !r.is_eligible)
+  const visible = (filter === 'all'     ? recipients
+                : filter === 'eligible' ? recipients.filter(r => r.is_eligible)
+                :                         recipients.filter(r => !r.is_eligible))
+    .filter(r => verificationFilter === 'all' || r.verification_status === verificationFilter)
 
   return (
     <>
@@ -83,10 +99,11 @@ export default function Recipients() {
         <button className="btn btn-green" onClick={() => setShowModal(true)}>+ Enroll Recipient</button>
       </div>
 
-      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+      <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <StatCard label="Total Recipients" value={total} />
         <StatCard label="Eligible"         value={eligible}   color="green" />
         <StatCard label="Ineligible"       value={ineligible} color="yellow" />
+        <StatCard label="Flagged"          value={flagged}    color="red" />
       </div>
 
       {actionErr && (
@@ -102,26 +119,40 @@ export default function Recipients() {
       <div className="card">
         <div className="card-header">
           <span className="card-title">All Recipients ({visible.length})</span>
-          <select
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-            style={{ width: 'auto', padding: '5px 10px', fontSize: 13 }}
-          >
-            <option value="all">All</option>
-            <option value="eligible">Eligible</option>
-            <option value="ineligible">Ineligible</option>
-          </select>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              style={{ width: 'auto', padding: '5px 10px', fontSize: 13 }}
+            >
+              <option value="all">All</option>
+              <option value="eligible">Eligible</option>
+              <option value="ineligible">Ineligible</option>
+            </select>
+            <select
+              value={verificationFilter}
+              onChange={e => setVerificationFilter(e.target.value)}
+              style={{ width: 'auto', padding: '5px 10px', fontSize: 13 }}
+            >
+              <option value="all">All verification</option>
+              <option value="pending">Pending</option>
+              <option value="in_review">In review</option>
+              <option value="approved">Approved</option>
+              <option value="declined">Declined</option>
+              <option value="flagged_duplicate">Flagged</option>
+            </select>
+          </div>
         </div>
         <div className="table-wrap">
           <table>
             <thead>
               <tr>
-                <th>#</th><th>Name</th><th>Email</th><th>Wallet</th><th>Status</th><th>Actions</th>
+                <th>#</th><th>Name</th><th>Email</th><th>Wallet</th><th>Status</th><th>Verification</th><th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {visible.length === 0 && (
-                <tr><td colSpan={6} className="empty">No recipients match this filter.</td></tr>
+                <tr><td colSpan={7} className="empty">No recipients match this filter.</td></tr>
               )}
               {visible.map(r => (
                 <tr key={r.recipient_id}>
@@ -130,13 +161,21 @@ export default function Recipients() {
                   <td className="td-muted">{r.recipient_email ?? '—'}</td>
                   <td><span className="wallet" title={r.wallet_address}>{shortWallet(r.wallet_address)}</span></td>
                   <td><Badge status={r.is_eligible ? 'eligible' : 'ineligible'} /></td>
+                  <td><Badge status={r.verification_status} /></td>
                   <td>
-                    <button
-                      className={`btn btn-sm ${r.is_eligible ? 'btn-red' : 'btn-green'}`}
-                      onClick={() => toggleEligibility(r)}
-                    >
-                      {r.is_eligible ? 'Revoke' : 'Reinstate'}
-                    </button>
+                    {r.verification_status === 'flagged_duplicate' ? (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button className="btn btn-sm btn-green" onClick={() => resolveDuplicate(r, 'approve')}>Approve</button>
+                        <button className="btn btn-sm btn-red" onClick={() => resolveDuplicate(r, 'reject')}>Reject</button>
+                      </div>
+                    ) : (
+                      <button
+                        className={`btn btn-sm ${r.is_eligible ? 'btn-red' : 'btn-green'}`}
+                        onClick={() => toggleEligibility(r)}
+                      >
+                        {r.is_eligible ? 'Revoke' : 'Reinstate'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

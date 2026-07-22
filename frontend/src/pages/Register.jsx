@@ -1,20 +1,35 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
+import VerificationModal from '../components/VerificationModal'
 
 function shortAddr(addr) {
   return addr ? addr.slice(0, 6) + '...' + addr.slice(-4) : ''
 }
 
 export default function Register() {
-  const { login }   = useAuth()
+  const { login, token, isVerified, refreshMe } = useAuth()
   const navigate    = useNavigate()
   const [form, setForm] = useState({ full_name: '', recipient_email: '', password: '', wallet_address: '' })
   const [walletConnected, setWalletConnected] = useState(false)
   const [err, setErr]       = useState('')
   const [walletErr, setWalletErr] = useState('')
   const [loading, setLoading]   = useState(false)
+  const [verificationUrl, setVerificationUrl] = useState(null)
+  const pollRef = useRef(null)
+
+  useEffect(() => {
+    if (!verificationUrl) return
+    pollRef.current = setInterval(() => {
+      refreshMe(token).catch(() => {})
+    }, 4000)
+    return () => clearInterval(pollRef.current)
+  }, [verificationUrl, token, refreshMe])
+
+  useEffect(() => {
+    if (verificationUrl && isVerified) navigate('/')
+  }, [verificationUrl, isVerified, navigate])
 
   function set(key) {
     return e => setForm(f => ({ ...f, [key]: e.target.value }))
@@ -46,7 +61,11 @@ export default function Register() {
         body: JSON.stringify(form),
       })
       login(data.token, 'recipient', data.recipient_id, data.full_name)
-      navigate('/')
+      if (data.verification_url) {
+        setVerificationUrl(data.verification_url)
+      } else {
+        navigate('/')
+      }
     } catch (e) {
       setErr(e.message)
     } finally {
@@ -160,7 +179,7 @@ export default function Register() {
               fontSize: 12, color: 'var(--yellow)', marginBottom: 16, display: 'flex', gap: 8,
             }}>
               <span>⚠</span>
-              Your application requires admin approval before disbursements begin.
+              After you create your account, you'll need to complete a quick identity verification before disbursements begin.
             </div>
 
             {err && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 12 }}>{err}</p>}
@@ -187,6 +206,13 @@ export default function Register() {
           </Link>
         </p>
       </div>
+
+      {verificationUrl && (
+        <VerificationModal
+          verificationUrl={verificationUrl}
+          onClose={() => navigate('/')}
+        />
+      )}
     </div>
   )
 }

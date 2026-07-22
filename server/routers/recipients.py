@@ -8,7 +8,7 @@ import crud.disbursement as disbursement_crud
 import crud.audit_log as audit_log_crud
 from db.pool import get_pool
 from dependencies import get_current_admin, get_current_user
-from schemas.recipient import EnrollRecipientRequest
+from schemas.recipient import EnrollRecipientRequest, ResolveDuplicateRequest
 from utils import WALLET_RE
 
 router = APIRouter()
@@ -17,10 +17,11 @@ router = APIRouter()
 @router.get("")
 async def list_recipients(
     is_eligible: Optional[bool] = Query(default=None),
+    verification_status: Optional[str] = Query(default=None),
     pool: asyncpg.Pool = Depends(get_pool),
     _: dict = Depends(get_current_admin),
 ):
-    return await recipient_crud.list_all(pool, is_eligible)
+    return await recipient_crud.list_all(pool, is_eligible, verification_status)
 
 
 @router.get("/{id}")
@@ -85,7 +86,37 @@ async def reinstate_recipient(
     if not recipient:
         raise HTTPException(status_code=404, detail="Recipient not found.")
     updated = await recipient_crud.reinstate(pool, id)
+    if not updated:
+        raise HTTPException(status_code=409, detail="Recipient has not passed identity verification.")
     await audit_log_crud.create(pool, admin["admin_id"], "reinstate_recipient", id, f"Reinstated {recipient['full_name']}")
+    return updated
+
+
+@router.patch("/{id}/resolve-duplicate")
+async def resolve_duplicate(
+    id: int,
+    body: ResolveDuplicateRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    admin: dict = Depends(get_current_admin),
+):
+    recipient = await recipient_crud.find(pool, id)
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if recipient["verification_status"] != "flagged_duplicate":
+        raise HTTPException(status_code=409, detail="Recipient is not flagged as a duplicate.")
+
+    approve = body.action == "approve"
+    updated = await recipient_crud.set_verification_result(
+        pool, id,
+        verification_status="approved" if approve else "declined",
+        is_verified=approve,
+        is_eligible=approve,
+    )
+    await audit_log_crud.create(
+        pool, admin["admin_id"],
+        "duplicate_override_approved" if approve else "duplicate_override_rejected",
+        id, f"Admin {'approved' if approve else 'rejected'} flagged duplicate for {recipient['full_name']}",
+    )
     return updated
 
 

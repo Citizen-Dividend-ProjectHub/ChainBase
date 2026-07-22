@@ -10,6 +10,7 @@ import Payments from './pages/Payments'
 import Recipients from './pages/Recipients'
 import Cycles from './pages/Cycles'
 import CycleDetail from './pages/CycleDetail'
+import VerificationGate from './pages/VerificationGate'
 
 function PublicRoute({ children }) {
   const { token } = useAuth()
@@ -34,11 +35,14 @@ function ComingSoon({ title }) {
 }
 
 function ProtectedLayout() {
-  const { token } = useAuth()
+  const { token, role, isVerified, verificationStatus } = useAuth()
   const location = useLocation()
   if (!token) {
     if (location.pathname === '/') return <Landing />
     return <Navigate to="/login" replace />
+  }
+  if (role === 'recipient' && !isVerified) {
+    return <VerificationGate status={verificationStatus} />
   }
   return (
     <div className="layout">

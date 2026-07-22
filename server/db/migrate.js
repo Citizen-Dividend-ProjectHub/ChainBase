@@ -27,6 +27,49 @@ const migrate = async () => {
   `);
 
   await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS didit_session_id    TEXT
+  `);
+  await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS is_verified          BOOLEAN NOT NULL DEFAULT FALSE
+  `);
+  await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS verification_status TEXT NOT NULL DEFAULT 'pending'
+  `);
+  await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS identity_hash        TEXT
+  `);
+  await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS verification_details TEXT
+  `);
+  await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS verified_at          TIMESTAMP
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_recipients_didit_session
+      ON recipients (didit_session_id) WHERE didit_session_id IS NOT NULL
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_recipients_identity_hash
+      ON recipients (identity_hash) WHERE identity_hash IS NOT NULL
+  `);
+
+  await pool.query(`
+    UPDATE recipients
+       SET is_verified = TRUE, verification_status = 'approved'
+     WHERE enrolled_by IS NOT NULL AND verification_status = 'pending'
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS didit_webhook_events (
+      event_id    TEXT PRIMARY KEY,
+      session_id  TEXT,
+      status      TEXT,
+      received_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS disbursement_cycles (
       cycle_id             SERIAL PRIMARY KEY,
       triggered_by         TEXT NOT NULL DEFAULT 'scheduler',

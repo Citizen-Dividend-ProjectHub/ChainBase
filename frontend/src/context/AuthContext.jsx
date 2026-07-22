@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { apiFetch } from '../api'
 
 const AuthContext = createContext(null)
 
@@ -7,16 +8,22 @@ export function AuthProvider({ children }) {
   const [role,     setRole]     = useState(() => localStorage.getItem('cb_role')     ?? null)
   const [userId,   setUserId]   = useState(() => localStorage.getItem('cb_userid')   ?? null)
   const [userName, setUserName] = useState(() => localStorage.getItem('cb_username') ?? null)
+  const [isVerified, setIsVerified] = useState(() => localStorage.getItem('cb_verified') === 'true')
+  const [verificationStatus, setVerificationStatus] = useState(() => localStorage.getItem('cb_verification_status') ?? null)
 
   function login(newToken, newRole, newUserId, newUserName) {
     localStorage.setItem('cb_token',    newToken)
     localStorage.setItem('cb_role',     newRole)
     localStorage.setItem('cb_userid',   String(newUserId ?? ''))
     localStorage.setItem('cb_username', newUserName ?? '')
+    localStorage.setItem('cb_verified', 'false')
+    localStorage.setItem('cb_verification_status', 'pending')
     setToken(newToken)
     setRole(newRole)
     setUserId(newUserId ? String(newUserId) : null)
     setUserName(newUserName ?? null)
+    setIsVerified(false)
+    setVerificationStatus('pending')
   }
 
   function logout() {
@@ -24,14 +31,38 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('cb_role')
     localStorage.removeItem('cb_userid')
     localStorage.removeItem('cb_username')
+    localStorage.removeItem('cb_verified')
+    localStorage.removeItem('cb_verification_status')
     setToken(null)
     setRole(null)
     setUserId(null)
     setUserName(null)
+    setIsVerified(false)
+    setVerificationStatus(null)
   }
 
+  async function refreshMe(currentToken = token) {
+    if (!currentToken) return
+    const me = await apiFetch('/auth/me', {}, currentToken)
+    if (!me) return
+    const verified = me.role === 'admin' ? true : !!me.is_verified
+    const status = me.role === 'admin' ? 'approved' : (me.verification_status ?? null)
+    localStorage.setItem('cb_verified', String(verified))
+    localStorage.setItem('cb_verification_status', status ?? '')
+    setIsVerified(verified)
+    setVerificationStatus(status)
+  }
+
+  useEffect(() => {
+    if (token) refreshMe(token).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ token, role, userId, userName, login, logout }}>
+    <AuthContext.Provider value={{
+      token, role, userId, userName, isVerified, verificationStatus,
+      login, logout, refreshMe,
+    }}>
       {children}
     </AuthContext.Provider>
   )

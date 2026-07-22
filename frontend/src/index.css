@@ -197,6 +197,7 @@ body {
 
 .stat-value.green { color: var(--green-bright); }
 .stat-value.yellow { color: var(--yellow); }
+.stat-value.red { color: var(--red); }
 
 /* ── Card / panel ── */
 .card {
@@ -293,6 +294,9 @@ tbody tr:hover td { background: rgba(255,255,255,0.03); }
   margin-bottom: 22px;
   color: var(--text);
 }
+
+.modal-wide { max-width: 520px; }
+.modal-iframe { width: 100%; height: 640px; border: none; border-radius: var(--radius); margin-bottom: 16px; }
 
 /* ── Form ── */
 .form-group { margin-bottom: 16px; }

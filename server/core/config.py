@@ -23,5 +23,12 @@ class Settings(BaseSettings):
     disbursement_cron_day: int = 1
     disbursement_cron_hour: int = 0
 
+    # Didit identity verification
+    didit_enabled: bool = False  # opt-in: requires a Didit sandbox/live account (business.didit.me)
+    didit_api_key: str = ""
+    didit_workflow_id: str = ""
+    didit_webhook_secret: str = ""
+    didit_base_url: str = "https://apx.didit.me"
+
 
 settings = Settings()
