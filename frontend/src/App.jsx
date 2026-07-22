@@ -10,6 +10,8 @@ import Payments from './pages/Payments'
 import Recipients from './pages/Recipients'
 import Cycles from './pages/Cycles'
 import CycleDetail from './pages/CycleDetail'
+import Bonuses from './pages/Bonuses'
+import Wallet from './pages/Wallet'
 
 function PublicRoute({ children }) {
   const { token } = useAuth()
@@ -47,11 +49,12 @@ function ProtectedLayout() {
         <Routes>
           <Route path="/"           element={<Dashboard />} />
           <Route path="/payments"   element={<Payments />} />
-          <Route path="/wallet"     element={<ComingSoon title="Wallet" />} />
+          <Route path="/wallet"     element={<Wallet />} />
           <Route path="/alerts"     element={<ComingSoon title="Alerts" />} />
           <Route path="/recipients" element={<AdminRoute><Recipients /></AdminRoute>} />
           <Route path="/cycles"     element={<AdminRoute><Cycles /></AdminRoute>} />
           <Route path="/cycles/:id" element={<AdminRoute><CycleDetail /></AdminRoute>} />
+          <Route path="/bonuses"    element={<AdminRoute><Bonuses /></AdminRoute>} />
         </Routes>
       </main>
     </div>

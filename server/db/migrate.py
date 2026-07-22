@@ -37,10 +37,15 @@ async def migrate() -> None:
                 recipient_email TEXT UNIQUE NOT NULL,
                 is_eligible     BOOLEAN NOT NULL DEFAULT TRUE,
                 wallet_address  VARCHAR(42) UNIQUE NOT NULL,
+                balance         NUMERIC(12,2) NOT NULL DEFAULT 0,
                 enrolled_by     INTEGER REFERENCES administrators(administrator_id) ON DELETE SET NULL,
                 enrolled_at     TIMESTAMP NOT NULL DEFAULT NOW(),
                 revoked_at      TIMESTAMP DEFAULT NULL
             )
+        """)
+        # Add balance to existing tables that were created without it
+        await conn.execute("""
+            ALTER TABLE recipients ADD COLUMN IF NOT EXISTS balance NUMERIC(12,2) NOT NULL DEFAULT 0
         """)
 
         await conn.execute("""
@@ -84,6 +89,33 @@ async def migrate() -> None:
                 target_recipient_id INTEGER REFERENCES recipients(recipient_id) ON DELETE SET NULL,
                 details             TEXT,
                 created_at          TIMESTAMP NOT NULL DEFAULT NOW()
+            )
+        """)
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS spending_behavior (
+                behavior_id               SERIAL PRIMARY KEY,
+                recipient_id              INTEGER REFERENCES recipients(recipient_id) ON DELETE CASCADE,
+                period                    TEXT NOT NULL,
+                restricted_purchase_count INTEGER NOT NULL DEFAULT 0,
+                total_transaction_count   INTEGER NOT NULL DEFAULT 0,
+                updated_at                TIMESTAMP NOT NULL DEFAULT NOW(),
+                UNIQUE (recipient_id, period)
+            )
+        """)
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS bonus_awards (
+                bonus_id     SERIAL PRIMARY KEY,
+                recipient_id INTEGER REFERENCES recipients(recipient_id) ON DELETE CASCADE,
+                cycle_id     INTEGER REFERENCES disbursement_cycles(cycle_id) ON DELETE CASCADE,
+                period       TEXT NOT NULL,
+                amount       NUMERIC(12,2) NOT NULL,
+                status       TEXT NOT NULL DEFAULT 'pending',
+                reviewed_by  INTEGER REFERENCES administrators(administrator_id) ON DELETE SET NULL,
+                reviewed_at  TIMESTAMP,
+                created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+                UNIQUE (recipient_id, cycle_id)
             )
         """)
 
