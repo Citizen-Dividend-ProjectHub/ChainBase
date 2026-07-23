@@ -8,7 +8,8 @@ from fastapi.staticfiles import StaticFiles
 from chain.client import init_chain_client
 from core.config import settings
 from db.pool import init_pool, close_pool
-from routers import auth, recipients, cycles, disbursements, funding_pool, audit_log
+from routers import auth, recipients, cycles, disbursements, funding_pool, audit_log, bonuses
+from spending import router as spending_router
 from scheduler.scheduler import start_scheduler, stop_scheduler
 
 
@@ -50,6 +51,8 @@ app.include_router(cycles.router,       prefix="/api/cycles",       tags=["Disbu
 app.include_router(disbursements.router,prefix="/api/disbursements",tags=["Disbursements"])
 app.include_router(funding_pool.router, prefix="/api/funding-pool", tags=["Funding Pool"])
 app.include_router(audit_log.router,    prefix="/api/audit-log",    tags=["Audit Log"])
+app.include_router(bonuses.router,      prefix="/api/bonuses",       tags=["Bonuses"])
+app.include_router(spending_router.router, prefix="/api",            tags=["Spending"])
 
 # ── Serve built React frontend ────────────────────────────────────────────────
 DIST = pathlib.Path(__file__).parent.parent / "frontend" / "dist"
