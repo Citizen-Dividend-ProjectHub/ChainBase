@@ -49,14 +49,18 @@ async def seed() -> None:
             ("Sofia Rodriguez",  "sofia.rodriguez@cbtest.com",  b"Sofia_Cb@2024",   "0xF6A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F6A1", True),
         ]
 
+        # Confirmed disbursements per recipient (cycle1=1000, cycle2=1200 for first 3)
+        # Jordan, Maria, David → $2200 | Aisha, Sofia → $1000 | Marcus → $0
+        seed_balances = [2200.00, 2200.00, 2200.00, 1000.00, 0.00, 1000.00]
+
         recipient_ids = []
-        for full_name, email, raw_pw, wallet, eligible in recipients_data:
+        for i, (full_name, email, raw_pw, wallet, eligible) in enumerate(recipients_data):
             pw_hash = bcrypt.hashpw(raw_pw, bcrypt.gensalt()).decode()
             row = await conn.fetchrow("""
-                INSERT INTO recipients (full_name, password_hash, recipient_email, wallet_address, is_eligible, enrolled_by)
-                VALUES ($1, $2, $3, $4, $5, $6)
+                INSERT INTO recipients (full_name, password_hash, recipient_email, wallet_address, is_eligible, enrolled_by, balance)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING recipient_id, is_eligible
-            """, full_name, pw_hash, email, wallet, eligible, admin_id)
+            """, full_name, pw_hash, email, wallet, eligible, admin_id, seed_balances[i])
             recipient_ids.append((row["recipient_id"], eligible))
 
         eligible_ids = [rid for rid, elig in recipient_ids if elig]
@@ -107,11 +111,45 @@ async def seed() -> None:
             """, c2["cycle_id"], rid, status, tx, disbursed)
 
         # ── Cycle 3 — pending Aug 2024, $1,000/recipient ─────────────────────
-        await conn.execute("""
+        c3 = await conn.fetchrow("""
             INSERT INTO disbursement_cycles
                 (scheduled_date, amount_per_recipient, total_recipients, status)
             VALUES ('2024-08-01', 1000.00, $1, 'pending')
+            RETURNING cycle_id
         """, len(eligible_ids))
+
+        # ── Spending behavior — period 2024-04 (Cycle 2's month) ─────────────
+        # Jordan: 0 restricted / 5 total  → qualifies for bonus
+        # Maria:  1 restricted (alcohol)  → no bonus
+        # David:  0 restricted / 2 total  → qualifies
+        # Aisha:  0 restricted / 4 total  → qualifies
+        # Sofia:  2 restricted (gambling) → no bonus
+        spending_seed = [
+            (eligible_ids[0], 0, 5),   # Jordan
+            (eligible_ids[1], 1, 3),   # Maria
+            (eligible_ids[2], 0, 2),   # David
+            (eligible_ids[3], 0, 4),   # Aisha
+            (eligible_ids[4], 2, 6),   # Sofia
+        ]
+        for rid, restricted_count, total_count in spending_seed:
+            await conn.execute("""
+                INSERT INTO spending_behavior (recipient_id, period, restricted_purchase_count, total_transaction_count)
+                VALUES ($1, '2024-04', $2, $3)
+            """, rid, restricted_count, total_count)
+
+        # ── Bonus awards for Cycle 2 ($1,200 × 10% = $120) ───────────────────
+        # Jordan → pending, David → approved, Aisha → denied
+        bonus_seed = [
+            (eligible_ids[0], c2["cycle_id"], "pending",  None),
+            (eligible_ids[2], c2["cycle_id"], "approved", admin_id),
+            (eligible_ids[3], c2["cycle_id"], "denied",   admin_id),
+        ]
+        for rid, cid, status, reviewer in bonus_seed:
+            reviewed_at = datetime(2024, 4, 5, 10, 0, 0) if reviewer else None
+            await conn.execute("""
+                INSERT INTO bonus_awards (recipient_id, cycle_id, period, amount, status, reviewed_by, reviewed_at)
+                VALUES ($1, $2, '2024-04', 120.00, $3, $4, $5)
+            """, rid, cid, status, reviewer, reviewed_at)
 
         print("Seed complete.")
         print()

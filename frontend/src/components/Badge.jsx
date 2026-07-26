@@ -5,6 +5,7 @@ const MAP = {
   eligible:  'badge-green',
   approved:  'badge-green',
   pending:   'badge-yellow',
+  denied:    'badge-red',
   processing:'badge-yellow',
   in_review: 'badge-yellow',
   failed:    'badge-red',

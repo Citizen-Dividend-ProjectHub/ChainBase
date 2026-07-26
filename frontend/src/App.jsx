@@ -13,7 +13,9 @@ import Cycles from './pages/Cycles'
 import CycleDetail from './pages/CycleDetail'
 import VerificationGate from './pages/VerificationGate'
 import WalletSetupGate from './pages/WalletSetupGate'
+import Bonuses from './pages/Bonuses'
 import Wallet from './pages/Wallet'
+import WalletSettings from './pages/WalletSettings'
 
 function PublicRoute({ children }) {
   const { token } = useAuth()
@@ -62,11 +64,13 @@ function ProtectedLayout() {
         <Routes>
           <Route path="/"           element={<Dashboard />} />
           <Route path="/payments"   element={<Payments />} />
-          <Route path="/wallet"     element={<Wallet />} />
+          <Route path="/wallet"          element={<Wallet />} />
+          <Route path="/wallet-settings" element={<WalletSettings />} />
           <Route path="/alerts"     element={<ComingSoon title="Alerts" />} />
           <Route path="/recipients" element={<AdminRoute><Recipients /></AdminRoute>} />
           <Route path="/cycles"     element={<AdminRoute><Cycles /></AdminRoute>} />
           <Route path="/cycles/:id" element={<AdminRoute><CycleDetail /></AdminRoute>} />
+          <Route path="/bonuses"    element={<AdminRoute><Bonuses /></AdminRoute>} />
         </Routes>
       </main>
     </div>
