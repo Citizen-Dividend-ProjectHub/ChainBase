@@ -61,7 +61,7 @@ export default function Landing() {
       <style>{`
         .landing-root {
           min-height: 100vh;
-          background: var(--bg);
+          background: var(--cb-bg);
           overflow-x: hidden;
           position: relative;
         }
@@ -96,9 +96,10 @@ export default function Landing() {
           pointer-events: none;
           z-index: 0;
         }
-        .landing-blob-a { width: 420px; height: 420px; background: var(--green-bright); top: -140px; left: -110px; animation: landing-float 11s ease-in-out infinite; }
-        .landing-blob-b { width: 380px; height: 380px; background: var(--green); top: 60px; right: -130px; animation: landing-float 13s ease-in-out infinite reverse; }
-        .landing-blob-c { width: 300px; height: 300px; background: var(--yellow); bottom: -160px; left: 38%; opacity: 0.22; animation: landing-float 15s ease-in-out infinite; animation-delay: -4s; }
+        .landing-blob-a { width: 420px; height: 420px; background: var(--cb-blue); top: -140px; left: -110px; animation: landing-float 11s ease-in-out infinite; }
+        .landing-blob-b { width: 380px; height: 380px; background: var(--cb-green); top: 60px; right: -130px; animation: landing-float 13s ease-in-out infinite reverse; }
+        .landing-blob-c { width: 300px; height: 300px; background: var(--cb-red); bottom: -160px; left: 38%; opacity: 0.18; animation: landing-float 15s ease-in-out infinite; animation-delay: -4s; }
+        .landing-blob-d { width: 260px; height: 260px; background: var(--cb-gold); bottom: 10%; right: 6%; opacity: 0.18; animation: landing-float 12s ease-in-out infinite reverse; animation-delay: -6s; }
 
         .landing-nav {
           position: sticky;
@@ -108,8 +109,8 @@ export default function Landing() {
           align-items: center;
           justify-content: space-between;
           padding: 18px 36px;
-          border-bottom: 1px solid var(--border);
-          background: rgba(13, 17, 23, 0.72);
+          border-bottom: 1px solid var(--cb-border);
+          background: var(--cb-card);
           backdrop-filter: blur(12px);
           -webkit-backdrop-filter: blur(12px);
         }
@@ -127,12 +128,12 @@ export default function Landing() {
           display: inline-flex;
           align-items: center;
           gap: 7px;
-          background: rgba(63,185,80,0.08);
-          border: 1px solid var(--green);
+          background: rgba(0,201,123,0.08);
+          border: 1px solid var(--cb-green);
           border-radius: 20px;
           padding: 6px 14px;
           font-size: 12px;
-          color: var(--green-bright);
+          color: #74e0a8;
           margin-bottom: 26px;
           animation: landing-fade-up 0.6s ease both;
         }
@@ -148,7 +149,7 @@ export default function Landing() {
         }
 
         .landing-title-gradient {
-          background: linear-gradient(90deg, var(--text) 0%, var(--green-bright) 50%, var(--text) 100%);
+          background: linear-gradient(90deg, #6aa4ff 0%, #34c98a 45%, #ffcb3d 75%, #6aa4ff 100%);
           background-size: 200% auto;
           -webkit-background-clip: text;
           background-clip: text;
@@ -158,7 +159,7 @@ export default function Landing() {
 
         .landing-subtext {
           font-size: 16px;
-          color: var(--text-muted);
+          color: var(--cb-muted);
           margin-top: 18px;
           line-height: 1.65;
           animation: landing-fade-up 0.7s ease both;
@@ -181,13 +182,13 @@ export default function Landing() {
           border-radius: 8px;
           transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
         }
-        .landing-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(35,134,54,0.5); opacity: 1; }
+        .landing-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(47,123,255,0.4); opacity: 1; }
         .landing-btn-outline:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,255,255,0.08); }
 
         .landing-scroll-cue {
           margin-top: 56px;
           font-size: 12px;
-          color: var(--text-muted);
+          color: var(--cb-muted);
           display: inline-flex;
           flex-direction: column;
           align-items: center;
@@ -215,15 +216,15 @@ export default function Landing() {
         }
 
         .landing-step-card {
-          background: var(--bg-card);
-          border: 1px solid var(--border);
-          border-radius: var(--radius);
+          background: var(--cb-card);
+          border: 1px solid var(--cb-border);
+          border-radius: var(--radius-lg);
           padding: 22px;
           transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
         }
         .landing-step-card:hover {
           transform: translateY(-4px);
-          border-color: var(--green);
+          border-color: var(--cb-border-strong);
           box-shadow: 0 12px 32px rgba(0,0,0,0.35);
         }
         .landing-step-icon { font-size: 24px; margin-bottom: 12px; display: block; }
@@ -247,8 +248,17 @@ export default function Landing() {
 
       {/* ── Top bar ─────────────────────────────────────────────────────── */}
       <header className="landing-nav">
-        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--green-bright)', letterSpacing: '-0.3px' }}>
-          Chain<span style={{ opacity: 0.5, fontWeight: 400 }}>Base</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="cb-logo" style={{ width: 30, height: 30 }}>
+            <div className="cb-logo-glow" />
+            <div className="cb-logo-body">
+              <div className="cb-logo-conic" />
+              <div className="cb-logo-sheen" />
+            </div>
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.3px' }}>
+            Chain<span style={{ opacity: 0.55, fontWeight: 500 }}>Base</span>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <Link to="/login" className="btn btn-outline btn-sm landing-btn-outline">Sign In</Link>
@@ -261,6 +271,7 @@ export default function Landing() {
         <div className="landing-blob landing-blob-a" />
         <div className="landing-blob landing-blob-b" />
         <div className="landing-blob landing-blob-c" />
+        <div className="landing-blob landing-blob-d" />
 
         <span className="landing-orbit landing-orbit-1">Ξ</span>
         <span className="landing-orbit landing-orbit-2">💵</span>

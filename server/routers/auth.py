@@ -9,26 +9,28 @@ from core.security import create_token
 from db.pool import get_pool
 from dependencies import get_current_recipient, get_optional_user
 from didit.client import DiditError, create_verification_session
-from schemas.auth import AdminLoginRequest, RecipientLoginRequest, RecipientRegisterRequest, WalletRotationRequest
+from schemas.auth import (
+    AdminLoginRequest, RecipientLoginRequest, RecipientRegisterRequest,
+    SetWalletRequest, WalletRotationRequest,
+)
 from utils import WALLET_RE
+from wallet.jwt import mint_wallet_id_token
 
 router = APIRouter()
 
 
 @router.post("/recipient/register", status_code=201)
 async def recipient_register(body: RecipientRegisterRequest, pool: asyncpg.Pool = Depends(get_pool)):
-    if not WALLET_RE.match(body.wallet_address):
-        raise HTTPException(status_code=400, detail="Invalid wallet address format.")
     existing = await recipient_crud.find_by_email(pool, body.recipient_email)
     if existing:
-        raise HTTPException(status_code=409, detail="Email or wallet address already exists.")
+        raise HTTPException(status_code=409, detail="Email already exists.")
     try:
         recipient = await recipient_crud.create(
-            pool, body.full_name, body.password, body.recipient_email, body.wallet_address,
+            pool, body.full_name, body.password, body.recipient_email,
             is_eligible=False,
         )
     except asyncpg.UniqueViolationError:
-        raise HTTPException(status_code=409, detail="Email or wallet address already exists.")
+        raise HTTPException(status_code=409, detail="Email already exists.")
 
     verification_url = None
     if settings.didit_enabled:
@@ -67,6 +69,47 @@ async def start_or_resume_verification(
         raise HTTPException(status_code=502, detail="Could not start verification session. Try again shortly.")
     await recipient_crud.set_didit_session(pool, recipient["recipient_id"], session["session_id"])
     return {"verification_url": session["verification_url"]}
+
+
+@router.post("/recipient/wallet-token")
+async def get_wallet_token(
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    recipient = await recipient_crud.find(pool, current["recipient_id"])
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if recipient["verification_status"] != "approved":
+        raise HTTPException(status_code=409, detail="Only verified recipients can provision a wallet.")
+    if recipient["wallet_address"] is not None:
+        raise HTTPException(status_code=409, detail="Wallet already provisioned.")
+    if not settings.wallet_provisioning_enabled:
+        raise HTTPException(status_code=503, detail="Wallet provisioning is not configured.")
+    return {"wallet_id_token": mint_wallet_id_token(recipient["recipient_email"])}
+
+
+@router.post("/recipient/wallet")
+async def set_wallet(
+    body: SetWalletRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    if not WALLET_RE.match(body.wallet_address):
+        raise HTTPException(status_code=400, detail="Invalid wallet address format.")
+    recipient = await recipient_crud.find(pool, current["recipient_id"])
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if recipient["verification_status"] != "approved":
+        raise HTTPException(status_code=409, detail="Only verified recipients can set a wallet.")
+    if recipient["wallet_address"] is not None:
+        raise HTTPException(status_code=409, detail="Wallet already provisioned.")
+    try:
+        updated = await recipient_crud.set_wallet(pool, current["recipient_id"], body.wallet_address, body.wallet_type)
+    except asyncpg.UniqueViolationError:
+        raise HTTPException(status_code=409, detail="Wallet address already in use.")
+    if not updated:
+        raise HTTPException(status_code=409, detail="Wallet already provisioned.")
+    return updated
 
 
 @router.post("/recipient/wallet-rotation")

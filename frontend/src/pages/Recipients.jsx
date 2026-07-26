@@ -124,7 +124,7 @@ export default function Recipients() {
 
       {actionErr && (
         <div style={{
-          background: 'rgba(248,81,73,0.1)', border: '1px solid var(--red)',
+          background: 'rgba(255,59,59,0.1)', border: '1px solid var(--red)',
           borderRadius: 'var(--radius)', padding: '10px 16px', marginBottom: 20,
           fontSize: 13, color: 'var(--red)',
         }}>

@@ -1,3 +1,4 @@
+from typing import Literal
 from pydantic import BaseModel
 
 
@@ -5,7 +6,6 @@ class RecipientRegisterRequest(BaseModel):
     full_name: str
     recipient_email: str
     password: str
-    wallet_address: str
 
 
 class RecipientLoginRequest(BaseModel):
@@ -15,6 +15,11 @@ class RecipientLoginRequest(BaseModel):
 
 class WalletRotationRequest(BaseModel):
     new_wallet_address: str
+
+
+class SetWalletRequest(BaseModel):
+    wallet_address: str
+    wallet_type: Literal["embedded", "external"]
 
 
 class AdminLoginRequest(BaseModel):

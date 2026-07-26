@@ -1,0 +1,1 @@
+var e={EIP155:`eip155`,SOLANA:`solana`,CASPER:`casper`,XRPL:`xrpl`,OTHER:`other`};export{e as t};

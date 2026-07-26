@@ -4,7 +4,7 @@ from core.security import hash_password, verify_password
 
 
 RECIPIENT_FIELDS = """
-    recipient_id, full_name, recipient_email, wallet_address, is_eligible, enrolled_at,
+    recipient_id, full_name, recipient_email, wallet_address, wallet_type, is_eligible, enrolled_at,
     is_verified, verification_status, didit_session_id, didit_session_purpose,
     identity_hash, verification_details, verified_at,
     pending_wallet_address, pending_identity_hash, pending_verification_details
@@ -16,15 +16,18 @@ async def create(
     full_name: str,
     password: str,
     recipient_email: str,
-    wallet_address: str,
+    wallet_address: Optional[str] = None,
     enrolled_by: Optional[int] = None,
     is_eligible: bool = True,
+    wallet_type: str = "external",
 ) -> dict:
     """Admin-enrolled recipients (enrolled_by set) are exempt from Didit
     verification — there's no ID document to check and an admin already
-    vetted them, so they're created already approved. Self-registered
-    recipients (enrolled_by=None) start pending/unverified/ineligible until
-    the Didit webhook approves them.
+    vetted them, so they're created already approved, with the wallet_address
+    they supply at enrollment time (wallet_type='external' by default, since
+    it's admin-entered, not embedded-provisioned). Self-registered recipients
+    (enrolled_by=None) start pending/unverified/ineligible with no wallet_address
+    at all — it's collected later via /recipient/wallet, once verified.
     """
     password_hash = hash_password(password)
     is_verified = enrolled_by is not None
@@ -32,16 +35,34 @@ async def create(
     row = await pool.fetchrow(
         f"""
         INSERT INTO recipients (
-            full_name, password_hash, recipient_email, wallet_address, enrolled_by,
+            full_name, password_hash, recipient_email, wallet_address, wallet_type, enrolled_by,
             is_eligible, is_verified, verification_status
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING {RECIPIENT_FIELDS}
         """,
-        full_name, password_hash, recipient_email, wallet_address, enrolled_by,
+        full_name, password_hash, recipient_email, wallet_address, wallet_type, enrolled_by,
         is_eligible, is_verified, verification_status,
     )
     return dict(row)
+
+
+async def set_wallet(pool: asyncpg.Pool, recipient_id: int, wallet_address: str, wallet_type: str) -> Optional[dict]:
+    """One-time wallet provisioning — only succeeds if this recipient doesn't
+    already have a wallet_address. Can raise asyncpg.UniqueViolationError if
+    another recipient already claimed this exact address; the caller must
+    handle that explicitly.
+    """
+    row = await pool.fetchrow(
+        """
+        UPDATE recipients
+           SET wallet_address = $2, wallet_type = $3
+         WHERE recipient_id = $1 AND wallet_address IS NULL
+        RETURNING recipient_id, wallet_address, wallet_type
+        """,
+        recipient_id, wallet_address, wallet_type,
+    )
+    return dict(row) if row else None
 
 
 async def find(pool: asyncpg.Pool, recipient_id: int) -> Optional[dict]:

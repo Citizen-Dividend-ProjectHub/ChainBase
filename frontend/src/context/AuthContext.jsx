@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   // the app redirects there — Register.jsx itself gets unmounted by PublicRoute
   // the instant login() sets a token, so it can never render this modal itself.
   const [pendingVerificationUrl, setPendingVerificationUrl] = useState(null)
+  const [walletAddress, setWalletAddress] = useState(() => localStorage.getItem('cb_wallet_address') ?? null)
 
   function login(newToken, newRole, newUserId, newUserName) {
     localStorage.setItem('cb_token',    newToken)
@@ -22,12 +23,14 @@ export function AuthProvider({ children }) {
     localStorage.setItem('cb_username', newUserName ?? '')
     localStorage.setItem('cb_verified', 'false')
     localStorage.setItem('cb_verification_status', 'pending')
+    localStorage.removeItem('cb_wallet_address')
     setToken(newToken)
     setRole(newRole)
     setUserId(newUserId ? String(newUserId) : null)
     setUserName(newUserName ?? null)
     setIsVerified(false)
     setVerificationStatus('pending')
+    setWalletAddress(null)
   }
 
   function logout() {
@@ -37,12 +40,14 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('cb_username')
     localStorage.removeItem('cb_verified')
     localStorage.removeItem('cb_verification_status')
+    localStorage.removeItem('cb_wallet_address')
     setToken(null)
     setRole(null)
     setUserId(null)
     setUserName(null)
     setIsVerified(false)
     setVerificationStatus(null)
+    setWalletAddress(null)
   }
 
   async function refreshMe(currentToken = token) {
@@ -55,6 +60,12 @@ export function AuthProvider({ children }) {
     localStorage.setItem('cb_verification_status', status ?? '')
     setIsVerified(verified)
     setVerificationStatus(status)
+    if (me.wallet_address) {
+      localStorage.setItem('cb_wallet_address', me.wallet_address)
+    } else {
+      localStorage.removeItem('cb_wallet_address')
+    }
+    setWalletAddress(me.wallet_address ?? null)
   }
 
   useEffect(() => {
@@ -67,6 +78,7 @@ export function AuthProvider({ children }) {
       token, role, userId, userName, isVerified, verificationStatus,
       login, logout, refreshMe,
       pendingVerificationUrl, setPendingVerificationUrl,
+      walletAddress,
     }}>
       {children}
     </AuthContext.Provider>

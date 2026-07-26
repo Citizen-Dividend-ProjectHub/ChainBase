@@ -1,0 +1,1 @@
+function e(e){return({request:t,context:n,next:r})=>{let i=e[t.method];return i===void 0?r():typeof i==`function`?i({request:t,context:n,next:r}):i}}export{e as t};

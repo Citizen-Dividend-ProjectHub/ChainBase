@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 import Badge from '../components/Badge'
+import StatCard from '../components/StatCard'
 
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
@@ -79,9 +80,9 @@ export default function Payments() {
         {wallet && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            background: 'rgba(63,185,80,0.08)', border: '1px solid var(--green)',
+            background: 'rgba(0,201,123,0.08)', border: '1px solid var(--green)',
             borderRadius: 20, padding: '6px 14px', fontSize: 12,
-            color: 'var(--green-bright)', fontFamily: 'monospace',
+            color: 'var(--green-bright)', fontFamily: 'var(--font-mono)',
           }}>
             <span style={{ fontSize: 10 }}>●</span>
             {wallet.slice(0, 6)}…{wallet.slice(-4)}
@@ -91,32 +92,24 @@ export default function Payments() {
 
       {/* ── Summary cards ── */}
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-        <div className="stat-card">
-          <div className="stat-label">Total Received</div>
-          <div className="stat-value green" style={{ fontSize: 24 }}>
-            ${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>USDC · {confirmed.length} payments</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Pending</div>
-          <div className="stat-value yellow" style={{ fontSize: 24 }}>
-            ${totalPending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>USDC · {pending.length} payments</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Total Payments</div>
-          <div className="stat-value" style={{ fontSize: 24 }}>{disbursements.length}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>across all cycles</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Next Payment</div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginTop: 4 }}>
-            {profile?.next_disbursement_date ?? 'None scheduled'}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>auto-disbursed 1st of month</div>
-        </div>
+        <StatCard
+          label="Total Received"
+          value={`$${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          hue="green"
+          sub={`USDC · ${confirmed.length} payments`}
+        />
+        <StatCard
+          label="Pending"
+          value={`$${totalPending.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+          hue="gold"
+          sub={`USDC · ${pending.length} payments`}
+        />
+        <StatCard label="Total Payments" value={disbursements.length} hue="blue" sub="across all cycles" />
+        <StatCard
+          label="Next Payment"
+          value={profile?.next_disbursement_date ?? 'None scheduled'}
+          sub="auto-disbursed 1st of month"
+        />
       </div>
 
       {/* ── Payments table ── */}

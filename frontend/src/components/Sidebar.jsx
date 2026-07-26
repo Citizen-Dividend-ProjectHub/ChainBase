@@ -1,5 +1,11 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import Avatar from './Avatar'
+
+function initials(name) {
+  if (!name) return '?'
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+}
 
 const icons = {
   grid: (
@@ -55,6 +61,13 @@ export default function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
+        <div className="cb-logo">
+          <div className="cb-logo-glow" />
+          <div className="cb-logo-body">
+            <div className="cb-logo-conic" />
+            <div className="cb-logo-sheen" />
+          </div>
+        </div>
         Chain<span>Base</span>
       </div>
 
@@ -75,16 +88,24 @@ export default function Sidebar() {
         )}
       </nav>
 
-      <div className="sidebar-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ textTransform: 'capitalize', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 140 }}>
-          {userName ?? role ?? 'user'}
-        </span>
-        <button
+      <div className="sidebar-footer">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Avatar initials={initials(userName)} size={34} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {userName ?? 'User'}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--cb-muted2)', textTransform: 'capitalize' }}>
+              {role === 'admin' ? 'Administrator' : 'Recipient'}
+            </div>
+          </div>
+        </div>
+        <div
           onClick={handleLogout}
-          style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, padding: 0, flexShrink: 0 }}
+          style={{ marginTop: 11, fontSize: 12, color: 'var(--cb-muted2)', cursor: 'pointer' }}
         >
           Sign out
-        </button>
+        </div>
       </div>
     </aside>
   )

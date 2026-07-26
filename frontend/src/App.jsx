@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Sidebar from './components/Sidebar'
+import TopBar from './components/TopBar'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import AdminLogin from './pages/AdminLogin'
@@ -11,6 +12,7 @@ import Recipients from './pages/Recipients'
 import Cycles from './pages/Cycles'
 import CycleDetail from './pages/CycleDetail'
 import VerificationGate from './pages/VerificationGate'
+import WalletSetupGate from './pages/WalletSetupGate'
 import Wallet from './pages/Wallet'
 
 function PublicRoute({ children }) {
@@ -36,7 +38,7 @@ function ComingSoon({ title }) {
 }
 
 function ProtectedLayout() {
-  const { token, role, isVerified, verificationStatus } = useAuth()
+  const { token, role, isVerified, verificationStatus, walletAddress } = useAuth()
   const location = useLocation()
   if (!token) {
     if (location.pathname === '/') return <Landing />
@@ -45,10 +47,18 @@ function ProtectedLayout() {
   if (role === 'recipient' && !isVerified) {
     return <VerificationGate status={verificationStatus} />
   }
+  if (role === 'recipient' && !walletAddress) {
+    return <WalletSetupGate />
+  }
   return (
     <div className="layout">
+      <div className="glow-blob glow-blob-a" />
+      <div className="glow-blob glow-blob-b" />
+      <div className="glow-blob glow-blob-c" />
+      <div className="glow-blob glow-blob-d" />
       <Sidebar />
       <main className="main">
+        <TopBar />
         <Routes>
           <Route path="/"           element={<Dashboard />} />
           <Route path="/payments"   element={<Payments />} />

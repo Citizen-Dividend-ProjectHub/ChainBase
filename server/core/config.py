@@ -31,5 +31,16 @@ class Settings(BaseSettings):
     didit_base_url: str = "https://apx.didit.me"
     didit_wallet_rotation_workflow_id: str = ""  # optional lightweight selfie-only workflow; falls back to didit_workflow_id
 
+    # Embedded wallet provisioning (MetaMask Embedded Wallets / Web3Auth, Custom JWT mode)
+    wallet_provisioning_enabled: bool = False  # opt-in: requires a MetaMask Embedded Wallets project + signing key below
+    wallet_jwt_private_key: str = ""  # RSA private key PEM, \n-escaped in .env
+    wallet_jwt_issuer: str = ""       # must match the "iss" validation configured in the dashboard's Custom JWT connection
+    wallet_jwt_audience: str = ""     # the Embedded Wallets project's Client ID
+    wallet_client_secret: str = ""    # captured for future management-API use; not needed for the Custom JWT connect flow itself
+
+    @property
+    def wallet_jwt_private_key_pem(self) -> str:
+        return self.wallet_jwt_private_key.replace("\\n", "\n")
+
 
 settings = Settings()

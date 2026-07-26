@@ -75,7 +75,7 @@ export default function CycleDetail() {
 
       {triggerMsg && (
         <div style={{
-          background: isSuccess ? 'rgba(63,185,80,0.1)' : 'rgba(248,81,73,0.1)',
+          background: isSuccess ? 'rgba(0,201,123,0.1)' : 'rgba(255,59,59,0.1)',
           border: `1px solid ${isSuccess ? 'var(--green)' : 'var(--red)'}`,
           borderRadius: 'var(--radius)',
           padding: '10px 16px', marginBottom: 20,

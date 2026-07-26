@@ -105,6 +105,23 @@ async def migrate() -> None:
         """)
 
         await conn.execute("""
+            ALTER TABLE recipients ALTER COLUMN wallet_address DROP NOT NULL
+        """)
+        await conn.execute("""
+            ALTER TABLE recipients ADD COLUMN IF NOT EXISTS wallet_type TEXT NOT NULL DEFAULT 'embedded'
+        """)
+        try:
+            await conn.execute("""
+                ALTER TABLE recipients ADD CONSTRAINT recipients_wallet_type_check
+                    CHECK (wallet_type IN ('embedded', 'external'))
+            """)
+        except asyncpg.DuplicateObjectError:
+            pass
+        await conn.execute("""
+            UPDATE recipients SET wallet_type = 'external' WHERE wallet_address IS NOT NULL
+        """)
+
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS didit_webhook_events (
                 event_id    TEXT PRIMARY KEY,
                 session_id  TEXT,

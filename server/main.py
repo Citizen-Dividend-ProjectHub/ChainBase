@@ -10,6 +10,7 @@ from core.config import settings
 from db.pool import init_pool, close_pool
 from routers import auth, recipients, cycles, disbursements, funding_pool, audit_log, webhooks
 from scheduler.scheduler import start_scheduler, stop_scheduler
+from wallet.jwt import public_jwk
 
 
 @asynccontextmanager
@@ -38,6 +39,15 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 async def global_exception_handler(request: Request, exc: Exception):
     print(f"Unhandled error: {exc}")
     return JSONResponse(status_code=500, content={"message": "Internal Server Error"})
+
+
+# Must be registered before the SPA catch-all route below — Starlette matches
+# routes in registration order, so a catch-all added first would swallow this.
+@app.get("/.well-known/jwks.json")
+async def jwks():
+    if not settings.wallet_jwt_private_key:
+        return {"keys": []}
+    return {"keys": [public_jwk()]}
 
 
 # ====================================

@@ -88,6 +88,24 @@ const migrate = async () => {
   `);
 
   await pool.query(`
+    ALTER TABLE recipients ALTER COLUMN wallet_address DROP NOT NULL
+  `);
+  await pool.query(`
+    ALTER TABLE recipients ADD COLUMN IF NOT EXISTS wallet_type TEXT NOT NULL DEFAULT 'embedded'
+  `);
+  try {
+    await pool.query(`
+      ALTER TABLE recipients ADD CONSTRAINT recipients_wallet_type_check
+        CHECK (wallet_type IN ('embedded', 'external'))
+    `);
+  } catch (err) {
+    if (err.code !== '42710') throw err; // duplicate_object — constraint already exists
+  }
+  await pool.query(`
+    UPDATE recipients SET wallet_type = 'external' WHERE wallet_address IS NOT NULL
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS didit_webhook_events (
       event_id    TEXT PRIMARY KEY,
       session_id  TEXT,

@@ -105,7 +105,7 @@ function WalletCard({ token, userId }) {
 
       {pending ? (
         <div style={{
-          background: 'rgba(210,153,34,0.1)', border: '1px solid var(--yellow)',
+          background: 'rgba(255,196,0,0.1)', border: '1px solid var(--yellow)',
           borderRadius: 'var(--radius)', padding: '10px 12px', fontSize: 13,
           color: 'var(--yellow)', marginBottom: 16,
         }}>
