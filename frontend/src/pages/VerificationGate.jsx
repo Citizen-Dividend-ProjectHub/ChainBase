@@ -31,6 +31,8 @@ export default function VerificationGate({ status }) {
   const [verificationUrl, setVerificationUrl] = useState(null)
   const [err, setErr] = useState('')
   const [starting, setStarting] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const pollRef = useRef(null)
 
   useEffect(() => {
@@ -61,8 +63,21 @@ export default function VerificationGate({ status }) {
     }
   }
 
+  async function deleteAccount() {
+    setErr('')
+    setDeleting(true)
+    try {
+      await apiFetch('/auth/recipient/account', { method: 'DELETE' }, token)
+      logout()
+    } catch (e) {
+      setErr(e.message)
+      setDeleting(false)
+    }
+  }
+
   const copy = COPY[status] ?? COPY.pending
   const canRetry = status === 'pending' || status === 'in_review'
+  const canDelete = status !== 'approved' && status !== 'name_change_review'
 
   return (
     <div className="empty" style={{ paddingTop: 80, maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
@@ -75,9 +90,32 @@ export default function VerificationGate({ status }) {
           {starting ? 'Starting…' : 'Start verification'}
         </button>
       )}
-      <div style={{ marginTop: 16 }}>
+      <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'center' }}>
         <button className="btn btn-outline btn-sm" onClick={logout}>Log out</button>
+        {canDelete && !confirmingDelete && (
+          <button
+            className="btn btn-outline btn-sm"
+            style={{ color: 'var(--red)', borderColor: 'var(--red)' }}
+            onClick={() => setConfirmingDelete(true)}
+          >
+            Delete account
+          </button>
+        )}
       </div>
+
+      {canDelete && confirmingDelete && (
+        <div style={{ marginTop: 12, fontSize: 13, color: 'var(--text-muted)' }}>
+          This permanently deletes your account. This can't be undone.
+          <div style={{ marginTop: 8, display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <button className="btn btn-outline btn-sm" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
+              Cancel
+            </button>
+            <button className="btn btn-sm" style={{ background: 'var(--red)', color: '#fff' }} onClick={deleteAccount} disabled={deleting}>
+              {deleting ? 'Deleting…' : 'Confirm delete'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {verificationUrl && (
         <VerificationModal verificationUrl={verificationUrl} onClose={() => setVerificationUrl(null)} />

@@ -535,6 +535,8 @@ tbody tr:hover td { background: var(--cb-fill); }
   border-radius: var(--radius-lg);
   width: 100%;
   max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
   padding: 28px;
 }
 
@@ -546,7 +548,7 @@ tbody tr:hover td { background: var(--cb-fill); }
 }
 
 .modal-wide { max-width: 520px; }
-.modal-iframe { width: 100%; height: 640px; border: none; border-radius: var(--radius); margin-bottom: 16px; }
+.modal-iframe { width: 100%; height: min(640px, 70vh); border: none; border-radius: var(--radius); margin-bottom: 16px; }
 
 /* ── Onboarding step indicator ── */
 .onboarding-steps { display: flex; align-items: center; margin-bottom: 24px; }

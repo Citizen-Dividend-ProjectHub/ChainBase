@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     didit_api_key: str = ""
     didit_workflow_id: str = ""
     didit_webhook_secret: str = ""
-    didit_base_url: str = "https://apx.didit.me"
+    didit_base_url: str = "https://verification.didit.me"
     didit_wallet_rotation_workflow_id: str = ""  # optional lightweight selfie-only workflow; falls back to didit_workflow_id
 
     # Embedded wallet provisioning (MetaMask Embedded Wallets / Web3Auth, Custom JWT mode)

@@ -71,6 +71,19 @@ async def start_or_resume_verification(
     return {"verification_url": session["verification_url"]}
 
 
+@router.delete("/recipient/account", status_code=204)
+async def delete_own_account(
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    recipient = await recipient_crud.find(pool, current["recipient_id"])
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if recipient["verification_status"] in ("approved", "name_change_review"):
+        raise HTTPException(status_code=409, detail="Verified accounts can't be self-deleted. Contact support.")
+    await recipient_crud.delete(pool, current["recipient_id"])
+
+
 @router.post("/recipient/wallet-token")
 async def get_wallet_token(
     pool: asyncpg.Pool = Depends(get_pool),

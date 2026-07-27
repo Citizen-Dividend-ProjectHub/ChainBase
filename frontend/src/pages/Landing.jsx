@@ -24,7 +24,7 @@ const steps = [
   },
 ]
 
-function Reveal({ children, delay = 0, style }) {
+function Reveal({ children, delay = 0, style, className = '' }) {
   const ref = useRef(null)
   const [visible, setVisible] = useState(false)
 
@@ -47,7 +47,7 @@ function Reveal({ children, delay = 0, style }) {
   return (
     <div
       ref={ref}
-      className={'landing-reveal' + (visible ? ' visible' : '')}
+      className={'landing-reveal' + (visible ? ' visible' : '') + (className ? ' ' + className : '')}
       style={{ transitionDelay: `${delay}ms`, ...style }}
     >
       {children}
@@ -236,9 +236,137 @@ export default function Landing() {
         }
         .landing-reveal.visible { opacity: 1; transform: translateY(0); }
 
+        /* ── Understand the basics ── */
+        .landing-basics {
+          position: relative;
+          z-index: 1;
+          padding: 40px 24px 60px;
+          max-width: 980px;
+          margin: 0 auto;
+        }
+
+        .landing-basics-row {
+          display: flex;
+          align-items: center;
+          gap: 48px;
+          padding: 36px 0;
+          border-bottom: 1px solid var(--cb-border);
+        }
+        .landing-basics-row:last-child { border-bottom: none; }
+        .landing-basics-row.reverse { flex-direction: row-reverse; }
+
+        .landing-basics-media {
+          flex: 0 0 340px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .landing-basics-text { flex: 1; min-width: 0; }
+
+        .landing-basics-title {
+          font-size: 22px;
+          font-weight: 700;
+          color: var(--cb-text);
+          margin-bottom: 10px;
+        }
+        .landing-basics-desc {
+          font-size: 14.5px;
+          color: var(--cb-muted);
+          line-height: 1.7;
+        }
+
+        /* Ethereum: chain-of-blocks visual */
+        .eth-chain-wrap { width: 100%; text-align: center; }
+        .eth-chain { display: flex; align-items: center; justify-content: center; }
+        .eth-block {
+          background: var(--cb-card);
+          border: 1px solid var(--cb-border);
+          border-radius: var(--radius);
+          padding: 10px 8px;
+          width: 68px;
+          text-align: center;
+        }
+        .eth-block-hash {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          color: var(--cb-muted);
+          display: block;
+          margin-bottom: 4px;
+          white-space: nowrap;
+          overflow: hidden;
+        }
+        .eth-block-check { color: var(--cb-green); font-size: 13px; }
+        .eth-link {
+          flex: 0 0 18px;
+          height: 1px;
+          background: var(--cb-border-strong);
+        }
+        .eth-chain-caption {
+          margin-top: 14px;
+          font-size: 12px;
+          color: var(--cb-muted);
+        }
+
+        /* Wallet: mocked wallet card */
+        .wallet-mock-card {
+          background: var(--cb-card);
+          border: 1px solid var(--cb-border);
+          border-radius: var(--radius-lg);
+          padding: 22px;
+          width: 100%;
+          text-align: center;
+        }
+        .wallet-mock-label {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: .08em;
+          color: var(--cb-muted);
+          margin-bottom: 12px;
+        }
+        .wallet-mock-badge {
+          margin-top: 14px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          color: var(--cb-green);
+        }
+
+        /* USDC: equivalence + spend chips */
+        .usdc-equiv {
+          font-size: 26px;
+          font-weight: 800;
+          text-align: center;
+          letter-spacing: -0.4px;
+        }
+        .usdc-equiv-eq { margin: 0 10px; color: var(--cb-muted); font-weight: 500; }
+        .usdc-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          justify-content: center;
+          margin-top: 18px;
+        }
+        .usdc-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: var(--cb-fill);
+          border: 1px solid var(--cb-border);
+          border-radius: 999px;
+          padding: 6px 12px;
+          font-size: 12.5px;
+          color: var(--cb-text);
+        }
+
         @media (max-width: 860px) {
           .landing-orbit { display: none; }
           .landing-title { font-size: 32px; }
+          .landing-basics-row, .landing-basics-row.reverse {
+            flex-direction: column;
+            gap: 24px;
+          }
+          .landing-basics-media { flex: 0 0 auto; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -296,14 +424,104 @@ export default function Landing() {
           <Link to="/register" className="btn btn-green landing-btn landing-btn-primary">
             Register as a Recipient
           </Link>
-          <Link to="/admin" className="btn btn-outline landing-btn landing-btn-outline">
-            Admin Login
+          <Link to="/login" className="btn btn-outline landing-btn landing-btn-outline">
+            Sign In
           </Link>
         </div>
 
         <div className="landing-scroll-cue">
           <span>How it works</span>
           <span>↓</span>
+        </div>
+      </section>
+
+      {/* ── Understand the basics ──────────────────────────────────────── */}
+      <section className="landing-basics">
+        <Reveal>
+          <div style={{ textAlign: 'center', marginBottom: 8 }}>
+            <div className="page-title" style={{ fontSize: 22 }}>Understand the basics</div>
+            <div className="page-subtitle">No crypto experience needed — here's what's actually happening</div>
+          </div>
+        </Reveal>
+
+        <div className="landing-basics-row">
+          <Reveal className="landing-basics-media">
+            <div className="eth-chain-wrap">
+              <div className="eth-chain">
+                {['0x8f3a…', '0x2c91…', '0xa07e…', '0x51db…'].map((hash, i) => (
+                  <div key={hash} style={{ display: 'flex', alignItems: 'center' }}>
+                    <div className="eth-block">
+                      <span className="eth-block-hash">{hash}</span>
+                      <span className="eth-block-check">✓</span>
+                    </div>
+                    {i < 3 && <div className="eth-link" />}
+                  </div>
+                ))}
+              </div>
+              <div className="eth-chain-caption">Every disbursement, permanently recorded</div>
+            </div>
+          </Reveal>
+          <Reveal className="landing-basics-text" delay={80}>
+            <div className="landing-basics-title">What is Ethereum?</div>
+            <p className="landing-basics-desc">
+              Ethereum is a public computer network — no company or government owns it. Every
+              ChainBase payment runs on it, and thousands of independent computers around the
+              world check and agree on each one. That means once a payment happens, nobody can
+              quietly change it or hide it afterward. Anyone — you, a journalist, an auditor —
+              can look up any ChainBase disbursement and see exactly when it happened and for
+              how much.
+            </p>
+          </Reveal>
+        </div>
+
+        <div className="landing-basics-row reverse">
+          <Reveal className="landing-basics-media" delay={80}>
+            <div className="wallet-mock-card">
+              <div className="wallet-mock-label">Your Wallet</div>
+              <div className="wallet-pill" style={{ justifyContent: 'center', width: '100%' }}>
+                <span className="wallet-pill-dot" />
+                0x71C7…9F3B
+              </div>
+              <div className="wallet-mock-badge">✓ Created automatically for you</div>
+            </div>
+          </Reveal>
+          <Reveal className="landing-basics-text">
+            <div className="landing-basics-title">What's a wallet?</div>
+            <p className="landing-basics-desc">
+              Think of a wallet like an account number — except no one, not even ChainBase, can
+              move money out of it without your permission, and you don't need a bank to have
+              one. When you sign up, ChainBase automatically creates a wallet for you, so you
+              never have to touch anything crypto-related yourself. Already comfortable with a
+              wallet app like 🦊 MetaMask? You can connect that one instead.
+            </p>
+          </Reveal>
+        </div>
+
+        <div className="landing-basics-row">
+          <Reveal className="landing-basics-media">
+            <div style={{ width: '100%', textAlign: 'center' }}>
+              <div className="usdc-equiv">
+                🪙 1 USDC <span className="usdc-equiv-eq">=</span> 💵 $1 USD
+              </div>
+              <div className="usdc-chips">
+                <span className="usdc-chip">🏠 Rent</span>
+                <span className="usdc-chip">🛒 Groceries</span>
+                <span className="usdc-chip">⛽ Gas</span>
+                <span className="usdc-chip">🧾 Bills</span>
+              </div>
+            </div>
+          </Reveal>
+          <Reveal className="landing-basics-text" delay={80}>
+            <div className="landing-basics-title">Getting paid: what is USDC?</div>
+            <p className="landing-basics-desc">
+              USDC is a digital dollar — 1 USDC always equals $1 USD, unlike other
+              cryptocurrencies that jump around in value. A $1,200 disbursement is exactly 1,200
+              USDC: no conversion, no waiting, no guessing what it's worth. You can spend it
+              directly — many cards and apps let you pay for rent, groceries, gas, and bills with
+              it just like a debit card — or convert it to cash in your bank account whenever
+              you want.
+            </p>
+          </Reveal>
         </div>
       </section>
 

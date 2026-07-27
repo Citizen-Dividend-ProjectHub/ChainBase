@@ -24,9 +24,18 @@ STATUS_MAP = {
 
 
 async def _handle_registration(pool: asyncpg.Pool, recipient: dict, body: DiditWebhookPayload) -> None:
-    internal_status = STATUS_MAP.get(body.status, "declined")
+    internal_status = STATUS_MAP.get(body.status)
+    if internal_status is None:
+        return  # non-terminal or unrecognized status (e.g. session created/in progress) — wait for a real outcome
 
-    if internal_status == "approved" and body.decision and body.decision.id_verifications:
+    if internal_status != "approved":
+        await recipient_crud.set_verification_result(
+            pool, recipient["recipient_id"],
+            verification_status=internal_status, is_verified=False, is_eligible=False,
+        )
+        return
+
+    if body.decision and body.decision.id_verifications:
         idv = body.decision.id_verifications[0]
         identity_hash = compute_identity_hash(idv.first_name, idv.last_name, idv.date_of_birth)
         duplicate = await identity_crud.find_duplicate(pool, identity_hash, recipient["recipient_id"])
@@ -49,14 +58,18 @@ async def _handle_registration(pool: asyncpg.Pool, recipient: dict, body: DiditW
                 identity_hash=identity_hash, verification_details=details,
             )
     else:
+        # Approved without id_verifications in this payload — still a real approval;
+        # duplicate-identity checking just can't run without the ID document data.
         await recipient_crud.set_verification_result(
             pool, recipient["recipient_id"],
-            verification_status=internal_status, is_verified=False, is_eligible=False,
+            verification_status="approved", is_verified=True, is_eligible=True,
         )
 
 
 async def _handle_wallet_rotation(pool: asyncpg.Pool, recipient: dict, body: DiditWebhookPayload) -> None:
-    internal_status = STATUS_MAP.get(body.status, "declined")
+    internal_status = STATUS_MAP.get(body.status)
+    if internal_status is None:
+        return  # non-terminal or unrecognized status — wait for a real outcome, keep the rotation pending
 
     if internal_status != "approved":
         await recipient_crud.clear_pending_wallet_address(pool, recipient["recipient_id"])

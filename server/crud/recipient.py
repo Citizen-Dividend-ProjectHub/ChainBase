@@ -47,6 +47,10 @@ async def create(
     return dict(row)
 
 
+async def delete(pool: asyncpg.Pool, recipient_id: int) -> None:
+    await pool.execute("DELETE FROM recipients WHERE recipient_id = $1", recipient_id)
+
+
 async def set_wallet(pool: asyncpg.Pool, recipient_id: int, wallet_address: str, wallet_type: str) -> Optional[dict]:
     """One-time wallet provisioning — only succeeds if this recipient doesn't
     already have a wallet_address. Can raise asyncpg.UniqueViolationError if
