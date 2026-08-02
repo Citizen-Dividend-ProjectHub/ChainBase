@@ -2,140 +2,40 @@
 
 **Live site:** https://chainbase-17bj.onrender.com
 
-A full-stack blockchain-powered platform that automates and transparently distributes a Citizens Dividend — a universal monthly income. Built with React, FastAPI, and PostgreSQL. Demonstrates JWT-based role authentication, on-chain transaction verification via Etherscan, and a two-role system for admins and recipients.
+A full-stack blockchain-powered platform that automates and transparently distributes a Citizens Dividend — a universal monthly income — in USDC on Ethereum. Recipients self-register, complete a mandatory hosted identity verification (Didit) to prevent duplicate claims, then get a self-custodial wallet (an auto-provisioned MPC embedded wallet, or their own external one) with no seed phrase or crypto experience required. Admins get a read-only, fully-automated view of disbursement history — the scheduler pays out on-chain every month, nobody clicks "send."
+
+For the full architecture, locked design decisions, database schema, and API contract, see **[`AI_README.md`](./AI_README.md)** — this file covers day-to-day setup. Frontend visual/design-system conventions live in **[`CLAUDE.md`](./CLAUDE.md)**.
 
 ## User Stories
 
-**Auth**
-- A recipient can register with their full name, email, password, and Ethereum wallet address
-- A recipient can log in with their email and password and receive a JWT
-- A recipient can log out and have their session cleared
-- An administrator can log in via a separate staff access URL
+**Auth & onboarding**
+- A recipient can self-register with just their name, email, and password
+- A recipient must complete a hosted Didit identity check (ID + liveness selfie, embedded in-app) before anything else is unlocked
+- A recipient then sets up a wallet — an embedded wallet is created for them automatically, or they connect/paste an existing one
+- A recipient can log in/out; an administrator logs in via a separate staff URL
 
-**Recipients (Recipient view)**
-- A logged-in recipient can view their dashboard showing USDC balance, next payment date, and total received
-- A logged-in recipient can view their full payment history with dates, amounts, and status
-- A logged-in recipient can verify any confirmed payment on Sepolia Etherscan via a transaction hash link
-- A logged-in recipient can copy a transaction hash to their clipboard
+**Recipient dashboard**
+- View USDC balance, next payment date/countdown, and full payment history with tx-hash links to Etherscan
+- Request a ChainBase virtual card (shows their real wallet address, not invented numbers), lock/unlock it, or request a replacement (30-day cooldown)
+- Use the simulated "Spend Tokens" tracker to see how the monthly bonus-eligibility calculation works
+- Manage account settings (name, password, notification preferences) and wallet settings (view address, open Web3Auth's wallet UI, rotate wallet)
 
-**Recipients (Admin view)**
-- A logged-in admin can view all enrolled recipients with their eligibility status and wallet address
-- A logged-in admin can enroll a new recipient (a temporary password is generated)
-- A logged-in admin can revoke or reinstate a recipient's eligibility
-
-**Citizens Dividend Cycles**
-- A logged-in admin can view all disbursement cycles and their status (pending / completed)
-- A logged-in admin can create a new Citizens Dividend cycle with a scheduled date and amount per recipient
-- A logged-in admin can trigger disbursements for a pending cycle, sending payments to all eligible recipients
-- A logged-in admin can view a cycle's detail page showing every individual disbursement
-
-**Funding Pool**
-- A logged-in admin can view the current funding pool balance on the dashboard
+**Admin view**
+- View all recipients, enroll new ones directly (auto-verified), revoke/reinstate eligibility
+- Resolve flagged-duplicate identity matches and legal-name-change reviews
+- Review and approve/deny monthly spending bonuses
+- View disbursement cycles and per-cycle payment logs (read-only — the scheduler runs cycles automatically)
+- View the funding pool balance
 
 ## Schema
 
-```
-administrators
-─────────────────────────────────────────
-administrator_id    SERIAL PRIMARY KEY
-administrator_name  TEXT UNIQUE NOT NULL
-password_hash       TEXT NOT NULL
-administrator_email TEXT UNIQUE NOT NULL
-created_at          TIMESTAMP DEFAULT NOW()
-
-recipients
-─────────────────────────────────────────
-recipient_id    SERIAL PRIMARY KEY
-full_name       TEXT NOT NULL
-password_hash   TEXT NOT NULL
-recipient_email TEXT UNIQUE NOT NULL
-is_eligible     BOOLEAN DEFAULT TRUE
-wallet_address  VARCHAR(42) UNIQUE NOT NULL
-enrolled_by     INT REFERENCES administrators(administrator_id)
-enrolled_at     TIMESTAMP DEFAULT NOW()
-revoked_at      TIMESTAMP
-
-disbursement_cycles
-─────────────────────────────────────────
-cycle_id             SERIAL PRIMARY KEY
-triggered_by         INT REFERENCES administrators(administrator_id)
-scheduled_date       TIMESTAMP NOT NULL
-triggered_at         TIMESTAMP
-amount_per_recipient NUMERIC(12,2) NOT NULL
-total_recipients     INT DEFAULT 0
-status               TEXT DEFAULT 'pending'
-
-disbursements
-─────────────────────────────────────────
-disbursement_id SERIAL PRIMARY KEY
-cycle_id        INT REFERENCES disbursement_cycles(cycle_id) ON DELETE CASCADE
-recipient_id    INT REFERENCES recipients(recipient_id) ON DELETE CASCADE
-status          TEXT DEFAULT 'pending'
-amount          NUMERIC(12,2) DEFAULT 0
-tx_hash         VARCHAR(66) UNIQUE
-disbursed_at    TIMESTAMP
-
-funding_pool
-─────────────────────────────────────────
-pool_id        SERIAL PRIMARY KEY
-balance        NUMERIC(14,2) DEFAULT 0
-last_synced_at TIMESTAMP DEFAULT NOW()
-
-audit_log
-─────────────────────────────────────────
-log_id              SERIAL PRIMARY KEY
-administrator_id    INT REFERENCES administrators(administrator_id)
-action_type         TEXT NOT NULL
-target_recipient_id INT REFERENCES recipients(recipient_id)
-details             TEXT
-created_at          TIMESTAMP DEFAULT NOW()
-```
+Full column-level schema (including identity verification, wallet, card, and notification fields) lives in **[`AI_README.md` §4](./AI_README.md#4-database-schema)**. Tables: `administrators`, `recipients`, `didit_webhook_events`, `disbursement_cycles`, `disbursements`, `funding_pool`, `audit_log`, `spending_behavior`, `bonus_awards`.
 
 An administrator enrolls many recipients. A disbursement cycle has many disbursements. Deleting a cycle cascades to delete its disbursements.
 
 ## API Contract
 
-### Auth endpoints
-
-| Method | Endpoint                        | Request Body                                             | Response                                    |
-| ------ | ------------------------------- | -------------------------------------------------------- | ------------------------------------------- |
-| POST   | `/api/auth/recipient/register`  | `{ full_name, recipient_email, password, wallet_address }` | `{ recipient_id, full_name, recipient_email }` |
-| POST   | `/api/auth/recipient/login`     | `{ recipient_email, password }`                          | `{ token, recipient_id, full_name }`        |
-| POST   | `/api/auth/admin/login`         | `{ administrator_name, password }`                       | `{ token, administrator_id, administrator_name }` |
-
-### Recipient endpoints
-
-| Method | Endpoint                            | Auth         | Request Body                                   | Response                                                     |
-| ------ | ----------------------------------- | ------------ | ---------------------------------------------- | ------------------------------------------------------------ |
-| GET    | `/api/recipients`                   | Admin only   | —                                              | `[{ recipient_id, full_name, recipient_email, wallet_address, is_eligible }]` |
-| GET    | `/api/recipients/:id`               | Admin or self | —                                             | `{ recipient_id, full_name, ..., next_disbursement_date }`   |
-| GET    | `/api/recipients/:id/disbursements` | Admin or self | —                                             | `[{ disbursement_id, cycle_id, amount, status, tx_hash, disbursed_at }]` |
-| POST   | `/api/recipients`                   | Admin only   | `{ full_name, recipient_email, wallet_address }` | `{ recipient_id, full_name, recipient_email, wallet_address }` |
-| PATCH  | `/api/recipients/:id/revoke`        | Admin only   | —                                              | `{ recipient_id, is_eligible: false }`                       |
-| PATCH  | `/api/recipients/:id/reinstate`     | Admin only   | —                                              | `{ recipient_id, is_eligible: true }`                        |
-
-### Disbursement cycle endpoints (all require admin)
-
-| Method | Endpoint                      | Request Body                              | Response                                                      |
-| ------ | ----------------------------- | ----------------------------------------- | ------------------------------------------------------------- |
-| GET    | `/api/cycles`                 | —                                         | `[{ cycle_id, scheduled_date, amount_per_recipient, total_recipients, status }]` |
-| GET    | `/api/cycles/:id`             | —                                         | `{ cycle_id, scheduled_date, amount_per_recipient, status, ... }` |
-| GET    | `/api/cycles/:id/disbursements` | —                                       | `[{ disbursement_id, recipient_name, amount, status, tx_hash }]` |
-| POST   | `/api/cycles`                 | `{ scheduled_date, amount_per_recipient }` | `{ cycle_id, scheduled_date, amount_per_recipient, status }`  |
-| POST   | `/api/cycles/:id/trigger`     | —                                         | `[{ disbursement_id, recipient_id, amount, status }]`         |
-
-### Disbursement endpoints
-
-| Method | Endpoint             | Auth              | Response                                                                 |
-| ------ | -------------------- | ----------------- | ------------------------------------------------------------------------ |
-| GET    | `/api/disbursements` | Admin or recipient | Admin: all disbursements. Recipient: their own disbursements.           |
-
-### Funding pool endpoints (all require admin)
-
-| Method | Endpoint             | Request Body  | Response                             |
-| ------ | -------------------- | ------------- | ------------------------------------ |
-| GET    | `/api/funding-pool`  | —             | `{ pool_id, balance, last_synced_at }` |
-| PATCH  | `/api/funding-pool`  | `{ balance }` | `{ pool_id, balance, last_synced_at }` |
+Full endpoint list lives in **[`AI_README.md` §5](./AI_README.md#5-api-contract)**. Everything is mounted under `/api`, grouped as: Auth & identity, Wallet & card, Account settings, Webhooks, Recipients, Disbursement Cycles (read-only), Spending (simulated), Bonuses, Funding Pool, Audit Log.
 
 ## Setup
 
@@ -172,6 +72,16 @@ uvicorn main:app --reload
 
 The API runs on `http://localhost:8000`.
 
+**Optional integrations** — the app runs fully without these (each is gated behind its own `*_enabled` flag, default `False`), but some recipient-facing flows are limited until they're configured:
+
+| Flag | Needs | Without it |
+|---|---|---|
+| `DIDIT_ENABLED` | A free Didit sandbox account (`business.didit.me`) + `DIDIT_API_KEY`/`DIDIT_WORKFLOW_ID`/`DIDIT_WEBHOOK_SECRET` | Self-registered recipients can sign up but can never pass identity verification — use the seeded, admin-enrolled recipients below to explore the app instead |
+| `WALLET_PROVISIONING_ENABLED` | A MetaMask Embedded Wallets (Web3Auth) project + signing key | The embedded-wallet option is hidden; recipients can still connect an external wallet |
+| `SCHEDULER_ENABLED` | A deployed `Distributor` contract + `RPC_URL`/`DEPLOYER_PRIVATE_KEY` | No automatic on-chain disbursements; the rest of the app (including the seeded disbursement history) works fine |
+
+Locally, Didit's real webhook can't reach your machine (no public URL) — either run a tunnel (e.g. `ngrok`) and point Didit's dashboard webhook config at it, or simulate a signed webhook call by hand against `POST /api/webhooks/didit` for testing.
+
 ### 3. Frontend
 
 In a second terminal:
@@ -182,11 +92,11 @@ npm install
 npm run dev
 ```
 
-The frontend runs on `http://localhost:5173`. The Vite dev proxy forwards all `/api` requests to the FastAPI server.
+The frontend runs on `http://localhost:3000`. The Vite dev proxy forwards all `/api` requests to the FastAPI server.
 
 ## Seed Accounts
 
-After running `python db/seed.py`, these accounts are available:
+After running `python db/seed.py`, these accounts are available. Seeded/admin-enrolled recipients start **already verified with a wallet set** (an admin has vetted them directly, per §2 of `AI_README.md`) — they skip Didit entirely, which makes them the fastest way to explore the dashboard without configuring identity verification yourself.
 
 **Admin** — login at `/admin`
 
@@ -205,54 +115,47 @@ After running `python db/seed.py`, these accounts are available:
 | Marcus Thompson  | marcus.thompson@cbtest.com     | Marcus_Cb@2024  | Ineligible |
 | Sofia Rodriguez  | sofia.rodriguez@cbtest.com     | Sofia_Cb@2024   | Eligible   |
 
+> These credentials are committed in plaintext for a student capstone demo with no real funds at stake — see `AI_README.md` §1. Don't reuse this pattern for a project handling real money.
+
 ## Application Structure
 
 ```
 ChainBase/
-├── frontend/                      # React app (Vite)
+├── frontend/                          # React app (Vite)
 │   └── src/
-│       ├── App.jsx                # Routes, role-aware protected layout
-│       ├── api.js                 # apiFetch helper — attaches Bearer token
-│       ├── index.css              # Dark theme CSS variables and global styles
+│       ├── App.jsx                    # Routes; ProtectedLayout gates on token → verified → wallet set
+│       ├── api.js                     # apiFetch helper — attaches Bearer token
+│       ├── index.css                  # --cb-* design tokens, dark/light theme, shared component CSS
 │       ├── context/
-│       │   └── AuthContext.jsx    # token, role, userId, userName — persisted in localStorage
+│       │   ├── AuthContext.jsx        # token, role, userId, userName, isVerified, walletAddress
+│       │   └── ThemeContext.jsx       # light/dark toggle, persisted, drives .cb-light on <body>
 │       ├── components/
-│       │   ├── Sidebar.jsx        # Role-aware nav (admin vs recipient links)
-│       │   ├── StatCard.jsx       # Reusable stat card component
-│       │   └── Badge.jsx          # Status badge (confirmed, pending, eligible, etc.)
+│       │   ├── Sidebar.jsx / TopBar.jsx   # Shared authenticated shell (nav, theme toggle, account menu)
+│       │   ├── StatCard.jsx / Badge.jsx / Avatar.jsx / Toggle.jsx   # Shared primitives
+│       │   ├── VirtualCard.jsx / CardManager.jsx / CardAddressForm.jsx  # ChainBase card feature
+│       │   └── VerificationModal.jsx / NameChangeReviewModal.jsx   # Didit iframe modal, admin review modal
 │       └── pages/
-│           ├── Login.jsx          # Recipient login (email + password)
-│           ├── AdminLogin.jsx     # Admin login at hidden /admin URL
-│           ├── Register.jsx       # Recipient self-registration with MetaMask wallet connect
-│           ├── Dashboard.jsx      # Admin overview or recipient dividend summary (role-aware)
-│           ├── Payments.jsx       # Recipient payment history with filters and stats
-│           ├── Recipients.jsx     # Admin: list, enroll, revoke/reinstate recipients
-│           ├── Cycles.jsx         # Admin: list and create Citizens Dividend cycles
-│           └── CycleDetail.jsx    # Admin: cycle breakdown and trigger disbursements
-└── server/                        # FastAPI + PostgreSQL API
-    ├── main.py                    # App entry point, router registration, static file serving
-    ├── dependencies.py            # get_current_user, require_admin FastAPI dependencies
-    ├── core/
-    │   ├── config.py              # Pydantic settings (env vars)
-    │   └── security.py            # JWT creation and verification
-    ├── routers/
-    │   ├── auth.py                # /api/auth/recipient/login, /admin/login, /register
-    │   ├── recipients.py          # /api/recipients — CRUD + eligibility toggle
-    │   ├── cycles.py              # /api/cycles — create, list, trigger
-    │   ├── disbursements.py       # /api/disbursements — list (role-aware)
-    │   ├── funding_pool.py        # /api/funding-pool — get and update balance
-    │   └── audit_log.py           # /api/audit-log — list actions
-    ├── crud/
-    │   ├── administrator.py       # SQL queries for administrators table
-    │   ├── recipient.py           # SQL queries for recipients table
-    │   ├── cycle.py               # SQL queries for disbursement_cycles table
-    │   ├── disbursement.py        # SQL queries for disbursements table
-    │   ├── funding_pool.py        # SQL queries for funding_pool table
-    │   └── audit_log.py           # SQL queries for audit_log table
-    ├── schemas/                   # Pydantic request/response models
-    ├── db/
-    │   ├── pool.py                # asyncpg connection pool (supports DATABASE_URL)
-    │   ├── migrate.py             # CREATE TABLE IF NOT EXISTS for all tables
-    │   └── seed.py                # Truncates and inserts sample admin, recipients, and cycles
-    └── requirements.txt
+│           ├── Landing.jsx / Login.jsx / AdminLogin.jsx / Register.jsx
+│           ├── VerificationGate.jsx   # Mandatory post-registration identity-check gate
+│           ├── WalletSetupGate.jsx    # Mandatory post-verification wallet-creation gate
+│           ├── Dashboard.jsx          # Admin overview or recipient dividend summary (role-aware)
+│           ├── Payments.jsx / Wallet.jsx / WalletSettings.jsx / Settings.jsx
+│           ├── Recipients.jsx / Cycles.jsx / CycleDetail.jsx / Bonuses.jsx   # Admin views
+├── server/                            # FastAPI + PostgreSQL API
+│   ├── main.py                        # App entry point, router registration, scheduler lifespan
+│   ├── dependencies.py                # get_current_recipient/admin, get_optional_user
+│   ├── core/                          # Settings (env vars), JWT + password hashing
+│   ├── didit/                         # Didit session creation, webhook signature verification
+│   ├── wallet/                        # Custom-JWT minting for MetaMask Embedded Wallets
+│   ├── chain/, scheduler/             # Web3.py contract client + APScheduler disbursement job
+│   ├── routers/                       # auth, recipients, cycles, disbursements, funding_pool,
+│   │                                  # audit_log, webhooks, bonuses
+│   ├── spending/                      # Simulated spending-tracker router + MCC category logic
+│   ├── crud/                          # SQL queries, one module per table
+│   ├── schemas/                       # Pydantic request/response models
+│   └── db/
+│       ├── pool.py                    # asyncpg connection pool (supports DATABASE_URL)
+│       ├── migrate.py                 # Idempotent schema migrations — source of truth for schema
+│       └── seed.py                    # Truncates and inserts sample admin, recipients, cycles
+└── contracts/                          # Solidity (Distributor, MockUSDC) + Hardhat — see contracts/CLAUDE.md
 ```
