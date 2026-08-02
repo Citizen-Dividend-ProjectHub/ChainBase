@@ -1,6 +1,6 @@
 from typing import Optional
 import asyncpg
-from core.security import verify_password
+from core.security import hash_password, verify_password
 
 
 async def find(pool: asyncpg.Pool, administrator_id: int) -> Optional[dict]:
@@ -9,6 +9,19 @@ async def find(pool: asyncpg.Pool, administrator_id: int) -> Optional[dict]:
         administrator_id,
     )
     return dict(row) if row else None
+
+
+async def get_password_hash(pool: asyncpg.Pool, administrator_id: int) -> Optional[str]:
+    return await pool.fetchval(
+        "SELECT password_hash FROM administrators WHERE administrator_id = $1", administrator_id,
+    )
+
+
+async def set_password(pool: asyncpg.Pool, administrator_id: int, new_password: str) -> None:
+    await pool.execute(
+        "UPDATE administrators SET password_hash = $2 WHERE administrator_id = $1",
+        administrator_id, hash_password(new_password),
+    )
 
 
 async def validate_password(pool: asyncpg.Pool, administrator_name: str, password: str) -> Optional[dict]:

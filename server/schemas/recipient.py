@@ -14,3 +14,7 @@ class ResolveDuplicateRequest(BaseModel):
 
 class ResolveNameChangeRequest(BaseModel):
     action: Literal["approve", "reject"]
+
+
+class RevokeRequestBody(BaseModel):
+    reason: str

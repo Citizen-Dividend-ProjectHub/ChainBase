@@ -70,27 +70,25 @@ function AccountMenu() {
             <div style={{ fontSize: 11.5, color: 'var(--cb-muted)', textTransform: 'capitalize' }}>{role}</div>
           </div>
           <div style={{ padding: 6 }}>
+            <button
+              onClick={() => go('/settings')}
+              style={{
+                width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+                padding: '9px 10px', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--cb-text)',
+              }}
+            >
+              Settings
+            </button>
             {role === 'recipient' && (
-              <>
-                <button
-                  onClick={() => go('/settings')}
-                  style={{
-                    width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '9px 10px', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--cb-text)',
-                  }}
-                >
-                  Settings
-                </button>
-                <button
-                  onClick={() => go('/wallet-settings')}
-                  style={{
-                    width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
-                    padding: '9px 10px', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--cb-text)',
-                  }}
-                >
-                  Wallet settings
-                </button>
-              </>
+              <button
+                onClick={() => go('/wallet-settings')}
+                style={{
+                  width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+                  padding: '9px 10px', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--cb-text)',
+                }}
+              >
+                Wallet settings
+              </button>
             )}
             <button
               onClick={logout}

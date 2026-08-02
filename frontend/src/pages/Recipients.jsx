@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import StatCard from '../components/StatCard'
 import Badge from '../components/Badge'
 import NameChangeReviewModal from '../components/NameChangeReviewModal'
+import RevokeReviewModal from '../components/RevokeReviewModal'
 
 function shortWallet(w) {
   if (!w) return '—'
@@ -11,10 +12,13 @@ function shortWallet(w) {
 }
 
 export default function Recipients() {
-  const { token } = useAuth()
+  const { token, userId } = useAuth()
   const [recipients, setRecipients] = useState([])
   const [filter, setFilter]         = useState('all')
   const [verificationFilter, setVerificationFilter] = useState('all')
+  const [search, setSearch]         = useState('')
+  const [page, setPage]             = useState(1)
+  const PAGE_SIZE = 15
   const [loading, setLoading]       = useState(true)
   const [err, setErr]               = useState('')
   const [actionErr, setActionErr]   = useState('')
@@ -24,28 +28,83 @@ export default function Recipients() {
   const [submitting, setSubmitting] = useState(false)
   const [reviewing, setReviewing]   = useState(null)
 
+  const [revocationRequests, setRevocationRequests] = useState([])
+  const [revokeTarget, setRevokeTarget]       = useState(null)
+  const [revokeReason, setRevokeReason]       = useState('')
+  const [revokeSubmitting, setRevokeSubmitting] = useState(false)
+  const [revokeErr, setRevokeErr]             = useState('')
+  const [reviewingRevocation, setReviewingRevocation] = useState(null)
+
   useEffect(() => {
     async function load() {
       setLoading(true); setErr('')
       try {
-        const data = await apiFetch('/recipients', {}, token)
+        const [data, requests] = await Promise.all([
+          apiFetch('/recipients', {}, token),
+          apiFetch('/recipients/revocation-requests', {}, token),
+        ])
         setRecipients(data ?? [])
+        setRevocationRequests(requests ?? [])
       } catch (e) { setErr(e.message) }
       finally { setLoading(false) }
     }
     load()
   }, [token])
 
-  async function toggleEligibility(r) {
+  useEffect(() => { setPage(1) }, [search, filter, verificationFilter])
+
+  function pendingRevocationFor(recipientId) {
+    return revocationRequests.find(rr => rr.recipient_id === recipientId)
+  }
+
+  async function reinstate(r) {
     setActionErr('')
-    const path = r.is_eligible
-      ? `/recipients/${r.recipient_id}/revoke`
-      : `/recipients/${r.recipient_id}/reinstate`
     try {
-      await apiFetch(path, { method: 'PATCH' }, token)
+      await apiFetch(`/recipients/${r.recipient_id}/reinstate`, { method: 'PATCH' }, token)
       setRecipients(prev => prev.map(x =>
-        x.recipient_id === r.recipient_id ? { ...x, is_eligible: !x.is_eligible } : x
+        x.recipient_id === r.recipient_id ? { ...x, is_eligible: true } : x
       ))
+    } catch (e) { setActionErr(e.message) }
+  }
+
+  async function submitRevokeRequest(e) {
+    e.preventDefault()
+    setRevokeErr('')
+    if (!revokeReason.trim()) {
+      setRevokeErr('A reason is required.')
+      return
+    }
+    setRevokeSubmitting(true)
+    try {
+      const request = await apiFetch(`/recipients/${revokeTarget.recipient_id}/revoke`, {
+        method: 'PATCH',
+        body: JSON.stringify({ reason: revokeReason.trim() }),
+      }, token)
+      setRevocationRequests(prev => [...prev, {
+        ...request,
+        recipient_name: revokeTarget.full_name,
+        requested_by_name: 'You',
+      }])
+      setRevokeTarget(null)
+      setRevokeReason('')
+    } catch (e) {
+      setRevokeErr(e.message)
+    } finally {
+      setRevokeSubmitting(false)
+    }
+  }
+
+  async function resolveRevocation(request, action) {
+    setActionErr('')
+    try {
+      await apiFetch(`/recipients/revocation-requests/${request.request_id}/${action}`, { method: 'PATCH' }, token)
+      setRevocationRequests(prev => prev.filter(rr => rr.request_id !== request.request_id))
+      if (action === 'approve') {
+        setRecipients(prev => prev.map(x =>
+          x.recipient_id === request.recipient_id ? { ...x, is_eligible: false } : x
+        ))
+      }
+      setReviewingRevocation(null)
     } catch (e) { setActionErr(e.message) }
   }
 
@@ -100,10 +159,16 @@ export default function Recipients() {
   const ineligible = total - eligible
   const flagged    = recipients.filter(r => r.verification_status === 'flagged_duplicate').length
 
-  const visible = (filter === 'all'     ? recipients
+  const q = search.trim().toLowerCase()
+  const filtered = (filter === 'all'     ? recipients
                 : filter === 'eligible' ? recipients.filter(r => r.is_eligible)
                 :                         recipients.filter(r => !r.is_eligible))
     .filter(r => verificationFilter === 'all' || r.verification_status === verificationFilter)
+    .filter(r => !q || r.full_name.toLowerCase().includes(q) || (r.recipient_email ?? '').toLowerCase().includes(q))
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const visible = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   return (
     <>
@@ -134,8 +199,15 @@ export default function Recipients() {
 
       <div className="card">
         <div className="card-header">
-          <span className="card-title">All Recipients ({visible.length})</span>
+          <span className="card-title">All Recipients ({filtered.length})</span>
           <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              placeholder="Search name or email…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ width: 200, padding: '5px 10px', fontSize: 13 }}
+            />
             <select
               value={filter}
               onChange={e => setFilter(e.target.value)}
@@ -187,13 +259,20 @@ export default function Recipients() {
                       </div>
                     ) : r.verification_status === 'name_change_review' ? (
                       <button className="btn btn-sm btn-outline" onClick={() => setReviewing(r)}>Review</button>
+                    ) : pendingRevocationFor(r.recipient_id) ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className="badge badge-yellow">Revoke pending</span>
+                        <button
+                          className="btn btn-sm btn-outline"
+                          onClick={() => setReviewingRevocation(pendingRevocationFor(r.recipient_id))}
+                        >
+                          Review
+                        </button>
+                      </div>
+                    ) : r.is_eligible ? (
+                      <button className="btn btn-sm btn-red" onClick={() => setRevokeTarget(r)}>Revoke</button>
                     ) : (
-                      <button
-                        className={`btn btn-sm ${r.is_eligible ? 'btn-red' : 'btn-green'}`}
-                        onClick={() => toggleEligibility(r)}
-                      >
-                        {r.is_eligible ? 'Revoke' : 'Reinstate'}
-                      </button>
+                      <button className="btn btn-sm btn-green" onClick={() => reinstate(r)}>Reinstate</button>
                     )}
                   </td>
                 </tr>
@@ -201,6 +280,25 @@ export default function Recipients() {
             </tbody>
           </table>
         </div>
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '14px 0' }}>
+            <button
+              className="btn btn-outline btn-sm"
+              disabled={currentPage <= 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+            >
+              Prev
+            </button>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Page {currentPage} of {totalPages}</span>
+            <button
+              className="btn btn-outline btn-sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {showModal && (
@@ -243,6 +341,44 @@ export default function Recipients() {
           recipient={reviewing}
           onResolve={action => resolveNameChange(reviewing, action)}
           onClose={() => setReviewing(null)}
+        />
+      )}
+
+      {revokeTarget && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setRevokeTarget(null)}>
+          <div className="modal">
+            <div className="modal-title">Request revocation — {revokeTarget.full_name}</div>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
+              This won't take effect immediately — another admin has to review and approve it first.
+            </p>
+            <form onSubmit={submitRevokeRequest}>
+              <div className="form-group">
+                <label>Reason</label>
+                <textarea
+                  required rows={4}
+                  placeholder="Why should this recipient's eligibility be revoked?"
+                  value={revokeReason}
+                  onChange={e => setRevokeReason(e.target.value)}
+                />
+              </div>
+              {revokeErr && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 8 }}>{revokeErr}</p>}
+              <div className="form-actions">
+                <button type="button" className="btn btn-outline" onClick={() => setRevokeTarget(null)}>Cancel</button>
+                <button type="submit" className="btn btn-red" disabled={revokeSubmitting}>
+                  {revokeSubmitting ? 'Submitting…' : 'Submit for review'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {reviewingRevocation && (
+        <RevokeReviewModal
+          request={reviewingRevocation}
+          canReview={String(reviewingRevocation.requested_by) !== String(userId)}
+          onResolve={action => resolveRevocation(reviewingRevocation, action)}
+          onClose={() => setReviewingRevocation(null)}
         />
       )}
     </>

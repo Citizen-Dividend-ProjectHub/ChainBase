@@ -6,9 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 import crud.recipient as recipient_crud
 import crud.disbursement as disbursement_crud
 import crud.audit_log as audit_log_crud
+import crud.revocation as revocation_crud
 from db.pool import get_pool
 from dependencies import get_current_admin, get_current_user
-from schemas.recipient import EnrollRecipientRequest, ResolveDuplicateRequest, ResolveNameChangeRequest
+from schemas.recipient import (
+    EnrollRecipientRequest, ResolveDuplicateRequest, ResolveNameChangeRequest, RevokeRequestBody,
+)
 from utils import WALLET_RE
 
 router = APIRouter()
@@ -22,6 +25,64 @@ async def list_recipients(
     _: dict = Depends(get_current_admin),
 ):
     return await recipient_crud.list_all(pool, is_eligible, verification_status)
+
+
+# Registered before GET "/{id}" — Starlette matches "/{id}" as a greedy string
+# segment first, so a literal path registered after it would 422 instead of
+# matching (FastAPI/Pydantic would fail to coerce "revocation-requests" to int
+# rather than falling through to try this route).
+@router.get("/revocation-requests")
+async def list_revocation_requests(
+    pool: asyncpg.Pool = Depends(get_pool),
+    _: dict = Depends(get_current_admin),
+):
+    return await revocation_crud.list_pending(pool)
+
+
+@router.patch("/revocation-requests/{request_id}/approve")
+async def approve_revocation_request(
+    request_id: int,
+    pool: asyncpg.Pool = Depends(get_pool),
+    admin: dict = Depends(get_current_admin),
+):
+    request = await revocation_crud.find(pool, request_id)
+    if not request:
+        raise HTTPException(status_code=404, detail="Revocation request not found.")
+    if request["status"] != "pending":
+        raise HTTPException(status_code=409, detail="This request has already been resolved.")
+    if request["requested_by"] == admin["admin_id"]:
+        raise HTTPException(status_code=403, detail="You can't approve a revocation you requested yourself.")
+
+    recipient = await recipient_crud.find(pool, request["recipient_id"])
+    updated = await revocation_crud.approve(pool, request_id, admin["admin_id"])
+    await audit_log_crud.create(
+        pool, admin["admin_id"], "revoke_recipient", request["recipient_id"],
+        f"Approved revocation of {recipient['full_name']} (requested by admin #{request['requested_by']}: {request['reason']})",
+    )
+    return updated
+
+
+@router.patch("/revocation-requests/{request_id}/deny")
+async def deny_revocation_request(
+    request_id: int,
+    pool: asyncpg.Pool = Depends(get_pool),
+    admin: dict = Depends(get_current_admin),
+):
+    request = await revocation_crud.find(pool, request_id)
+    if not request:
+        raise HTTPException(status_code=404, detail="Revocation request not found.")
+    if request["status"] != "pending":
+        raise HTTPException(status_code=409, detail="This request has already been resolved.")
+    if request["requested_by"] == admin["admin_id"]:
+        raise HTTPException(status_code=403, detail="You can't deny a revocation you requested yourself.")
+
+    recipient = await recipient_crud.find(pool, request["recipient_id"])
+    updated = await revocation_crud.deny(pool, request_id, admin["admin_id"])
+    await audit_log_crud.create(
+        pool, admin["admin_id"], "revoke_denied", request["recipient_id"],
+        f"Denied revocation of {recipient['full_name']} (requested by admin #{request['requested_by']}: {request['reason']})",
+    )
+    return updated
 
 
 @router.get("/{id}")
@@ -65,15 +126,24 @@ async def enroll_recipient(
 @router.patch("/{id}/revoke")
 async def revoke_recipient(
     id: int,
+    body: RevokeRequestBody,
     pool: asyncpg.Pool = Depends(get_pool),
     admin: dict = Depends(get_current_admin),
 ):
+    if not body.reason.strip():
+        raise HTTPException(status_code=400, detail="A reason is required to request a revocation.")
     recipient = await recipient_crud.find(pool, id)
     if not recipient:
         raise HTTPException(status_code=404, detail="Recipient not found.")
-    updated = await recipient_crud.revoke(pool, id)
-    await audit_log_crud.create(pool, admin["admin_id"], "revoke_recipient", id, f"Revoked {recipient['full_name']}")
-    return updated
+    if await revocation_crud.find_pending_for_recipient(pool, id):
+        raise HTTPException(status_code=409, detail="A revocation request is already pending for this recipient.")
+
+    request = await revocation_crud.create(pool, id, admin["admin_id"], body.reason.strip())
+    await audit_log_crud.create(
+        pool, admin["admin_id"], "revoke_requested", id,
+        f"Requested revocation of {recipient['full_name']}: {body.reason.strip()}",
+    )
+    return request
 
 
 @router.patch("/{id}/reinstate")

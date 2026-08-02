@@ -225,6 +225,19 @@ async def migrate() -> None:
             )
         """)
 
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS revocation_requests (
+                request_id   SERIAL PRIMARY KEY,
+                recipient_id INTEGER REFERENCES recipients(recipient_id) ON DELETE CASCADE,
+                requested_by INTEGER REFERENCES administrators(administrator_id) ON DELETE SET NULL,
+                reason       TEXT NOT NULL,
+                status       TEXT NOT NULL DEFAULT 'pending',
+                reviewed_by  INTEGER REFERENCES administrators(administrator_id) ON DELETE SET NULL,
+                reviewed_at  TIMESTAMPTZ,
+                created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+        """)
+
         print("Migration complete: all tables ready.")
     finally:
         await conn.close()

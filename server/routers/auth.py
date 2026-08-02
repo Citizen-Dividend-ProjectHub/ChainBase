@@ -8,7 +8,7 @@ import crud.recipient as recipient_crud
 from core.config import settings
 from core.security import create_token, verify_password
 from db.pool import get_pool
-from dependencies import get_current_recipient, get_optional_user
+from dependencies import get_current_admin, get_current_recipient, get_optional_user
 from didit.client import DiditError, create_verification_session
 from schemas.auth import (
     AdminLoginRequest, ChangePasswordRequest, RecipientLoginRequest, RecipientRegisterRequest,
@@ -229,6 +229,20 @@ async def change_password(
     if not current_hash or not verify_password(body.current_password, current_hash):
         raise HTTPException(status_code=401, detail="Current password is incorrect.")
     await recipient_crud.set_password(pool, current["recipient_id"], body.new_password)
+
+
+@router.post("/admin/change-password", status_code=204)
+async def admin_change_password(
+    body: ChangePasswordRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_admin),
+):
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters.")
+    current_hash = await admin_crud.get_password_hash(pool, current["admin_id"])
+    if not current_hash or not verify_password(body.current_password, current_hash):
+        raise HTTPException(status_code=401, detail="Current password is incorrect.")
+    await admin_crud.set_password(pool, current["admin_id"], body.new_password)
 
 
 @router.put("/recipient/notifications")

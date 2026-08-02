@@ -50,7 +50,7 @@ function ProfileCard({ token, me, onSaved }) {
   )
 }
 
-function PasswordCard({ token }) {
+function PasswordCard({ token, endpoint = '/auth/recipient/change-password' }) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -67,7 +67,7 @@ function PasswordCard({ token }) {
     }
     setSubmitting(true)
     try {
-      await apiFetch('/auth/recipient/change-password', {
+      await apiFetch(endpoint, {
         method: 'POST',
         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
       }, token)
@@ -169,22 +169,7 @@ function NotificationsCard({ token, me }) {
   )
 }
 
-export default function Settings() {
-  const { token, refreshMe } = useAuth()
-  const [me, setMe] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState('')
-
-  useEffect(() => {
-    apiFetch('/auth/me', {}, token)
-      .then(setMe)
-      .catch(e => setErr(e.message))
-      .finally(() => setLoading(false))
-  }, [token])
-
-  if (loading) return <div className="empty">Loading…</div>
-  if (err)     return <div className="empty" style={{ color: 'var(--red)' }}>Error: {err}</div>
-
+function RecipientSettings({ token, refreshMe, me, setMe }) {
   return (
     <>
       <div className="page-header">
@@ -202,4 +187,38 @@ export default function Settings() {
       <NotificationsCard token={token} me={me} />
     </>
   )
+}
+
+function AdminSettings({ token }) {
+  return (
+    <>
+      <div className="page-header">
+        <div>
+          <div className="page-title">Settings</div>
+          <div className="page-subtitle">Manage your admin account</div>
+        </div>
+      </div>
+      <PasswordCard token={token} endpoint="/auth/admin/change-password" />
+    </>
+  )
+}
+
+export default function Settings() {
+  const { token, role, refreshMe } = useAuth()
+  const [me, setMe] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    apiFetch('/auth/me', {}, token)
+      .then(setMe)
+      .catch(e => setErr(e.message))
+      .finally(() => setLoading(false))
+  }, [token])
+
+  if (loading) return <div className="empty">Loading…</div>
+  if (err)     return <div className="empty" style={{ color: 'var(--red)' }}>Error: {err}</div>
+
+  if (role === 'admin') return <AdminSettings token={token} />
+  return <RecipientSettings token={token} refreshMe={refreshMe} me={me} setMe={setMe} />
 }
