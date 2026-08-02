@@ -1,14 +1,35 @@
 import { useEffect, useState } from 'react'
-import { useAccount } from 'wagmi'
+import { useAccount, useDisconnect } from 'wagmi'
 import { WALLET_CONNECTORS, AUTH_CONNECTION } from '@web3auth/modal'
-import { useWeb3AuthConnect } from '@web3auth/modal/react'
+import { useWeb3AuthConnect, useWalletUI } from '@web3auth/modal/react'
 import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
+import VirtualCard from '../components/VirtualCard'
+import CardAddressForm from '../components/CardAddressForm'
 
 const web3AuthConfigured = !!import.meta.env.VITE_WEB3AUTH_CLIENT_ID
 
 function shortAddr(addr) {
   return addr ? addr.slice(0, 6) + '...' + addr.slice(-4) : ''
+}
+
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false)
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+  return (
+    <button onClick={copy} title="Copy wallet address" style={{
+      background: 'none', border: 'none', cursor: 'pointer',
+      color: copied ? 'var(--green-bright)' : 'var(--text-muted)',
+      fontSize: 13, padding: '0 4px', verticalAlign: 'middle',
+    }}>
+      {copied ? '✓ Copied' : '⧉ Copy'}
+    </button>
+  )
 }
 
 // Only ever rendered when the app is wrapped in Web3AuthProvider/WagmiProvider
@@ -18,26 +39,49 @@ function EmbeddedWalletCreate({ onCreated }) {
   const { token } = useAuth()
   const { connectTo, error: connectError } = useWeb3AuthConnect()
   const { address, isConnected } = useAccount()
+  const { disconnect } = useDisconnect()
   const [starting, setStarting] = useState(false)
   const [err, setErr] = useState('')
   const [unavailable, setUnavailable] = useState(false)
+  // wagmi persists its last connection in localStorage across page loads/accounts —
+  // a leftover connection from a different recipient in this same browser must never
+  // be silently attributed to whoever is logged in now. If we're already "connected"
+  // the moment this mounts, that's stale state, not a result of this session's own
+  // connectTo() call — force a clean disconnect and wait for it before trusting anything.
+  const [clearingStale, setClearingStale] = useState(isConnected)
 
   useEffect(() => {
-    if (isConnected && address) {
+    if (clearingStale) disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (clearingStale && !isConnected) setClearingStale(false)
+  }, [clearingStale, isConnected])
+
+  useEffect(() => {
+    if (!clearingStale && isConnected && address) {
       onCreated(address, 'embedded').catch(() => {}).finally(() => setStarting(false))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, address])
+  }, [clearingStale, isConnected, address])
 
   // connectTo() can fail without rejecting its promise — the SDK surfaces the
   // failure through this hook's own error state instead, so it must be
   // watched separately or `starting` would be stuck forever on failure.
+  // It can also set this error transiently mid-flow (e.g. an optional endpoint
+  // 404ing) even when the connection goes on to succeed a moment later — wait
+  // briefly and only show it if we still aren't connected by then, so a real
+  // success is never followed by a confusing flash of "could not connect".
   useEffect(() => {
-    if (connectError) {
+    if (!connectError) return
+    const t = setTimeout(() => {
+      if (isConnected && address) return
       setErr(connectError.message || 'Could not connect. Please try again or use an existing wallet.')
       setStarting(false)
-    }
-  }, [connectError])
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [connectError, isConnected, address])
 
   async function create() {
     setErr('')
@@ -67,6 +111,27 @@ function EmbeddedWalletCreate({ onCreated }) {
       </button>
       {err && <p style={{ color: 'var(--red)', fontSize: 13, marginTop: 8 }}>{err}</p>}
     </>
+  )
+}
+
+// Only ever rendered when web3AuthConfigured is true (same guard as
+// EmbeddedWalletCreate), since useWalletUI() needs the Web3AuthProvider context.
+function ManageWalletButton() {
+  const { showWalletUI } = useWalletUI()
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div style={{ fontSize: 12.5, color: 'var(--text-muted)', marginBottom: 8 }}>
+        Want to move funds elsewhere, or need your private key?
+      </div>
+      <button
+        type="button"
+        className="btn btn-outline btn-sm"
+        onClick={() => showWalletUI()}
+        style={{ width: '100%', justifyContent: 'center' }}
+      >
+        Manage your wallet
+      </button>
+    </div>
   )
 }
 
@@ -196,9 +261,14 @@ function ExistingWalletConnect({ onCreated }) {
 }
 
 export default function WalletSetupGate() {
-  const { token, refreshMe, logout } = useAuth()
+  const { token, userName, refreshMe, logout } = useAuth()
   const [showExisting, setShowExisting] = useState(!web3AuthConfigured)
   const [err, setErr] = useState('')
+  const [createdWallet, setCreatedWallet] = useState(null)
+  const [continuing, setContinuing] = useState(false)
+  const [cardPhase, setCardPhase] = useState('ask') // 'ask' | 'address' | 'revealed'
+  const [cardErr, setCardErr] = useState('')
+  const [requestingCard, setRequestingCard] = useState(false)
 
   async function finalize(wallet_address, wallet_type) {
     setErr('')
@@ -207,11 +277,131 @@ export default function WalletSetupGate() {
         method: 'POST',
         body: JSON.stringify({ wallet_address, wallet_type }),
       }, token)
-      await refreshMe(token)
+      // Don't refreshMe() (which flips routing straight to the dashboard) until the
+      // recipient has actually seen and acknowledged the address — otherwise a wallet
+      // can be created with no visible confirmation of what just happened or where.
+      setCreatedWallet({ address: wallet_address, type: wallet_type })
     } catch (e) {
       setErr(e.message)
       throw e
     }
+  }
+
+  async function continueToDashboard() {
+    setContinuing(true)
+    await refreshMe(token)
+  }
+
+  async function requestCard(mailing_address) {
+    setCardErr('')
+    setRequestingCard(true)
+    try {
+      await apiFetch('/auth/recipient/card', {
+        method: 'POST',
+        body: JSON.stringify({ mailing_address }),
+      }, token)
+      setCardPhase('revealed')
+    } catch (e) {
+      setCardErr(e.message)
+    } finally {
+      setRequestingCard(false)
+    }
+  }
+
+  if (createdWallet && cardPhase === 'revealed') {
+    return (
+      <div className="empty" style={{ paddingTop: 80, maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>🎉</div>
+        <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 8 }}>Your card is ready</div>
+        <div style={{ fontSize: 14, marginBottom: 24 }}>
+          You can use your digital card right away. We've saved your mailing address for ChainBase's
+          physical card program — we'll follow up by email once physical cards are available to ship.
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center' }}>
+          <VirtualCard address={createdWallet.address} name={userName} animate />
+        </div>
+        <button
+          className="btn btn-green"
+          onClick={continueToDashboard}
+          disabled={continuing}
+          style={{ width: '100%', justifyContent: 'center', marginTop: 24 }}
+        >
+          {continuing ? 'Loading…' : 'Continue to dashboard'}
+        </button>
+      </div>
+    )
+  }
+
+  if (createdWallet && cardPhase === 'address') {
+    return (
+      <div className="empty" style={{ paddingTop: 80, maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>📬</div>
+        <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 8 }}>Where should we send it?</div>
+        <div style={{ fontSize: 14, marginBottom: 20 }}>
+          We'll save this mailing address for ChainBase's card program, so it's ready when physical
+          cards become available.
+        </div>
+        <div className="card" style={{ padding: 20, textAlign: 'left' }}>
+          <CardAddressForm onSubmit={requestCard} submitting={requestingCard} err={cardErr} />
+        </div>
+        <button
+          type="button"
+          className="btn btn-outline btn-sm"
+          onClick={() => setCardPhase('ask')}
+          style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}
+        >
+          Back
+        </button>
+      </div>
+    )
+  }
+
+  if (createdWallet) {
+    return (
+      <div className="empty" style={{ paddingTop: 80, maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
+        <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 8 }}>Wallet created</div>
+        <div style={{ fontSize: 14, marginBottom: 20 }}>
+          {createdWallet.type === 'embedded'
+            ? "ChainBase created this wallet for you automatically — you don't need to do anything else with it."
+            : 'This wallet is now linked to your account.'} Your monthly USDC dividend will be sent here.
+        </div>
+        <div className="card" style={{ padding: 20, textAlign: 'left' }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Your wallet address
+          </div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, wordBreak: 'break-all' }}>
+            {createdWallet.address} <CopyButton text={createdWallet.address} />
+          </div>
+          {web3AuthConfigured && createdWallet.type === 'embedded' && <ManageWalletButton />}
+        </div>
+
+        <div style={{ marginTop: 20, textAlign: 'left' }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>
+            Want a ChainBase card to spend your USDC?
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 14 }}>
+            Your digital card is linked to the wallet address above automatically.
+          </div>
+          <button
+            className="btn btn-green"
+            onClick={() => setCardPhase('address')}
+            style={{ width: '100%', justifyContent: 'center' }}
+          >
+            Get my ChainBase card
+          </button>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={continueToDashboard}
+            disabled={continuing}
+            style={{ width: '100%', justifyContent: 'center', marginTop: 8 }}
+          >
+            {continuing ? 'Loading…' : 'Skip for now'}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

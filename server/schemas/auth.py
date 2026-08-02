@@ -22,6 +22,28 @@ class SetWalletRequest(BaseModel):
     wallet_type: Literal["embedded", "external"]
 
 
+class RequestCardRequest(BaseModel):
+    mailing_address: str
+
+
+class UpdateProfileRequest(BaseModel):
+    full_name: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class UpdateNotificationPrefsRequest(BaseModel):
+    notify_email_disbursements: bool
+    notify_email_verification: bool
+
+
+class SetCardLockRequest(BaseModel):
+    locked: bool
+
+
 class AdminLoginRequest(BaseModel):
     administrator_name: str
     password: str

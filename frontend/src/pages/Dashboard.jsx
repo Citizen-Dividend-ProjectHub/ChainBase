@@ -4,6 +4,7 @@ import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 import StatCard from '../components/StatCard'
 import Badge from '../components/Badge'
+import CardManager from '../components/CardManager'
 import { useCountdown } from '../hooks/useCountdown'
 
 const AVATAR_GRADS = [
@@ -311,6 +312,13 @@ function RecipientDashboard({ token, userId, userName }) {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="card" style={{ padding: 24, marginBottom: 20 }}>
+        <div className="card-header" style={{ marginBottom: 16 }}>
+          <span className="card-title">Your ChainBase Card</span>
+        </div>
+        <CardManager token={token} userId={userId} userName={userName} totalReceived={totalReceived} />
       </div>
 
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>

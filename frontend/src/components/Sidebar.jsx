@@ -73,7 +73,7 @@ export default function Sidebar() {
             <div className="cb-logo-sheen" />
           </div>
         </div>
-        Chain<span>Base</span>
+        <div>Chain<span>Base</span></div>
       </div>
 
       <nav className="sidebar-nav">

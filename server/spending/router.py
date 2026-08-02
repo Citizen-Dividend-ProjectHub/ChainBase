@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
+from crud import recipient as recipient_crud
 from crud import spending as spending_crud
 from db.pool import get_pool
 from dependencies import get_current_admin, get_current_recipient
@@ -83,6 +84,10 @@ async def recipient_purchase(
         raise HTTPException(400, f"Unknown MCC. Try: {', '.join(list(SAMPLE_MCCS.keys())[:6])}")
 
     recipient_id = user["recipient_id"]
+    recipient = await recipient_crud.find(pool, recipient_id)
+    if recipient and recipient["card_locked"]:
+        raise HTTPException(409, "Your card is locked. Unlock it in your dashboard to make purchases.")
+
     period = spending_crud.current_period()
     restricted = is_restricted(body.mcc)
     category = get_category(body.mcc)

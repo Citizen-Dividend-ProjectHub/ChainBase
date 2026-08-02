@@ -1,10 +1,30 @@
 import { useEffect, useRef, useState } from 'react'
+import { useWalletUI } from '@web3auth/modal/react'
 import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 import VerificationModal from '../components/VerificationModal'
+import CardManager from '../components/CardManager'
+
+const web3AuthConfigured = !!import.meta.env.VITE_WEB3AUTH_CLIENT_ID
 
 function shortAddr(addr) {
   return addr ? addr.slice(0, 6) + '...' + addr.slice(-4) : ''
+}
+
+// Only ever rendered when web3AuthConfigured is true (guarded by its caller),
+// since useWalletUI() needs the Web3AuthProvider context from main.jsx.
+function ManageWalletButton() {
+  const { showWalletUI } = useWalletUI()
+  return (
+    <button
+      type="button"
+      className="btn btn-outline btn-sm"
+      onClick={() => showWalletUI()}
+      style={{ marginLeft: 'auto' }}
+    >
+      Manage wallet
+    </button>
+  )
 }
 
 function CopyButton({ text }) {
@@ -99,39 +119,42 @@ function WalletCard({ token, userId }) {
         <span className="card-title">Wallet address</span>
       </div>
 
-      {resultMsg && (
-        <p style={{ fontSize: 13, color: 'var(--green-bright)', marginBottom: 12 }}>{resultMsg}</p>
-      )}
+      <div style={{ padding: '20px 24px' }}>
+        {resultMsg && (
+          <p style={{ fontSize: 13, color: 'var(--green-bright)', marginBottom: 12 }}>{resultMsg}</p>
+        )}
 
-      {pending ? (
-        <div style={{
-          background: 'rgba(255,196,0,0.1)', border: '1px solid var(--yellow)',
-          borderRadius: 'var(--radius)', padding: '10px 12px', fontSize: 13,
-          color: 'var(--yellow)', marginBottom: 16,
-        }}>
-          Wallet rotation to <span className="td-mono">{shortAddr(pending)}</span> is awaiting identity reverification.
-        </div>
-      ) : (
-        <>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-            <span className="wallet" title={profile?.wallet_address}>{shortAddr(profile?.wallet_address)}</span>
-            <CopyButton text={profile?.wallet_address} />
+        {pending ? (
+          <div style={{
+            background: 'rgba(255,196,0,0.1)', border: '1px solid var(--yellow)',
+            borderRadius: 'var(--radius)', padding: '10px 12px', fontSize: 13,
+            color: 'var(--yellow)', marginBottom: 16,
+          }}>
+            Wallet rotation to <span className="td-mono">{shortAddr(pending)}</span> is awaiting identity reverification.
           </div>
-          <form onSubmit={submitRotation}>
-            <div className="form-group">
-              <label>New wallet address</label>
-              <input required placeholder="0x..." value={form} onChange={e => setForm(e.target.value)} />
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
+              <span className="wallet" title={profile?.wallet_address}>{shortAddr(profile?.wallet_address)}</span>
+              <CopyButton text={profile?.wallet_address} />
+              {web3AuthConfigured && profile?.wallet_type === 'embedded' && <ManageWalletButton />}
             </div>
-            {err && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 8 }}>{err}</p>}
-            <button type="submit" className="btn btn-green" disabled={submitting}>
-              {submitting ? 'Starting…' : 'Request wallet change'}
-            </button>
-          </form>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 12 }}>
-            Changing your wallet requires a quick selfie reverification to confirm it's really you.
-          </p>
-        </>
-      )}
+            <form onSubmit={submitRotation}>
+              <div className="form-group">
+                <label>New wallet address</label>
+                <input required placeholder="0x..." value={form} onChange={e => setForm(e.target.value)} />
+              </div>
+              {err && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 8 }}>{err}</p>}
+              <button type="submit" className="btn btn-green" disabled={submitting}>
+                {submitting ? 'Starting…' : 'Request wallet change'}
+              </button>
+            </form>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 12, marginBottom: 0 }}>
+              Changing your wallet requires a quick selfie reverification to confirm it's really you.
+            </p>
+          </>
+        )}
+      </div>
 
       {verificationUrl && (
         <VerificationModal verificationUrl={verificationUrl} onClose={() => setVerificationUrl(null)} />
@@ -173,14 +196,16 @@ function ReverifyCard({ token }) {
       <div className="card-header">
         <span className="card-title">Re-verify identity</span>
       </div>
-      <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
-        Legally changed your name (marriage, court order) or need to resubmit updated ID documents?
-        Start a new verification session below.
-      </p>
-      {err && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 8 }}>{err}</p>}
-      <button className="btn btn-outline" onClick={startReverify} disabled={starting}>
-        {starting ? 'Starting…' : 'Update legal documents'}
-      </button>
+      <div style={{ padding: '20px 24px' }}>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>
+          Legally changed your name (marriage, court order) or need to resubmit updated ID documents?
+          Start a new verification session below.
+        </p>
+        {err && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 8 }}>{err}</p>}
+        <button className="btn btn-outline" onClick={startReverify} disabled={starting}>
+          {starting ? 'Starting…' : 'Update legal documents'}
+        </button>
+      </div>
 
       {verificationUrl && (
         <VerificationModal verificationUrl={verificationUrl} onClose={() => setVerificationUrl(null)} />
@@ -190,7 +215,7 @@ function ReverifyCard({ token }) {
 }
 
 export default function WalletSettings() {
-  const { token, userId } = useAuth()
+  const { token, userId, userName } = useAuth()
 
   return (
     <>
@@ -201,6 +226,12 @@ export default function WalletSettings() {
         </div>
       </div>
       <WalletCard token={token} userId={userId} />
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-header"><span className="card-title">Your ChainBase Card</span></div>
+        <div style={{ padding: '20px 24px' }}>
+          <CardManager token={token} userId={userId} userName={userName} />
+        </div>
+      </div>
       <ReverifyCard token={token} />
     </>
   )

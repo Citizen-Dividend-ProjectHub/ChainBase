@@ -7,7 +7,10 @@ RECIPIENT_FIELDS = """
     recipient_id, full_name, recipient_email, wallet_address, wallet_type, is_eligible, enrolled_at,
     is_verified, verification_status, didit_session_id, didit_session_purpose,
     identity_hash, verification_details, verified_at,
-    pending_wallet_address, pending_identity_hash, pending_verification_details
+    pending_wallet_address, pending_identity_hash, pending_verification_details,
+    card_requested_at, card_mailing_address,
+    notify_email_disbursements, notify_email_verification,
+    card_locked, card_reissue_requested_at
 """
 
 
@@ -65,6 +68,87 @@ async def set_wallet(pool: asyncpg.Pool, recipient_id: int, wallet_address: str,
         RETURNING recipient_id, wallet_address, wallet_type
         """,
         recipient_id, wallet_address, wallet_type,
+    )
+    return dict(row) if row else None
+
+
+async def request_card(pool: asyncpg.Pool, recipient_id: int, mailing_address: str) -> Optional[dict]:
+    """One-time card request — only succeeds if this recipient hasn't already
+    requested one. No account/routing numbers are generated or stored; the
+    digital card is visually keyed to the recipient's existing wallet_address.
+    mailing_address is stored for a future physical-card program — no physical
+    card is actually shipped by this system today.
+    """
+    row = await pool.fetchrow(
+        """
+        UPDATE recipients
+           SET card_requested_at = NOW(), card_mailing_address = $2
+         WHERE recipient_id = $1 AND card_requested_at IS NULL
+        RETURNING recipient_id, card_requested_at, card_mailing_address
+        """,
+        recipient_id, mailing_address,
+    )
+    return dict(row) if row else None
+
+
+async def set_card_locked(pool: asyncpg.Pool, recipient_id: int, locked: bool) -> Optional[dict]:
+    row = await pool.fetchrow(
+        "UPDATE recipients SET card_locked = $2 WHERE recipient_id = $1 RETURNING recipient_id, card_locked",
+        recipient_id, locked,
+    )
+    return dict(row) if row else None
+
+
+async def reissue_card(pool: asyncpg.Pool, recipient_id: int) -> Optional[dict]:
+    """Locks the current card immediately and starts the reissue cooldown —
+    mirrors real-world "report lost/stolen" behavior: the old card stops
+    working right away, and a replacement takes time, so no new one can be
+    requested again until the cooldown (enforced by the caller) has passed.
+    """
+    row = await pool.fetchrow(
+        """
+        UPDATE recipients
+           SET card_locked = true, card_reissue_requested_at = NOW()
+         WHERE recipient_id = $1
+        RETURNING recipient_id, card_locked, card_reissue_requested_at
+        """,
+        recipient_id,
+    )
+    return dict(row) if row else None
+
+
+async def update_profile(pool: asyncpg.Pool, recipient_id: int, full_name: str) -> Optional[dict]:
+    row = await pool.fetchrow(
+        "UPDATE recipients SET full_name = $2 WHERE recipient_id = $1 RETURNING recipient_id, full_name",
+        recipient_id, full_name,
+    )
+    return dict(row) if row else None
+
+
+async def get_password_hash(pool: asyncpg.Pool, recipient_id: int) -> Optional[str]:
+    return await pool.fetchval(
+        "SELECT password_hash FROM recipients WHERE recipient_id = $1", recipient_id,
+    )
+
+
+async def set_password(pool: asyncpg.Pool, recipient_id: int, new_password: str) -> None:
+    await pool.execute(
+        "UPDATE recipients SET password_hash = $2 WHERE recipient_id = $1",
+        recipient_id, hash_password(new_password),
+    )
+
+
+async def update_notification_prefs(
+    pool: asyncpg.Pool, recipient_id: int, notify_email_disbursements: bool, notify_email_verification: bool,
+) -> Optional[dict]:
+    row = await pool.fetchrow(
+        """
+        UPDATE recipients
+           SET notify_email_disbursements = $2, notify_email_verification = $3
+         WHERE recipient_id = $1
+        RETURNING recipient_id, notify_email_disbursements, notify_email_verification
+        """,
+        recipient_id, notify_email_disbursements, notify_email_verification,
     )
     return dict(row) if row else None
 

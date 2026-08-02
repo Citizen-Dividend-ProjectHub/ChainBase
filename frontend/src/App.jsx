@@ -16,6 +16,7 @@ import WalletSetupGate from './pages/WalletSetupGate'
 import Bonuses from './pages/Bonuses'
 import Wallet from './pages/Wallet'
 import WalletSettings from './pages/WalletSettings'
+import Settings from './pages/Settings'
 
 function PublicRoute({ children }) {
   const { token } = useAuth()
@@ -66,6 +67,7 @@ function ProtectedLayout() {
           <Route path="/payments"   element={<Payments />} />
           <Route path="/wallet"          element={<Wallet />} />
           <Route path="/wallet-settings" element={<WalletSettings />} />
+          <Route path="/settings"        element={<Settings />} />
           <Route path="/alerts"     element={<ComingSoon title="Alerts" />} />
           <Route path="/recipients" element={<AdminRoute><Recipients /></AdminRoute>} />
           <Route path="/cycles"     element={<AdminRoute><Cycles /></AdminRoute>} />

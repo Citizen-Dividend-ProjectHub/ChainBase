@@ -56,10 +56,13 @@ export function AuthProvider({ children }) {
     if (!me) return
     const verified = me.role === 'admin' ? true : !!me.is_verified
     const status = me.role === 'admin' ? 'approved' : (me.verification_status ?? null)
+    const name = me.role === 'admin' ? me.administrator_name : me.full_name
     localStorage.setItem('cb_verified', String(verified))
     localStorage.setItem('cb_verification_status', status ?? '')
+    if (name) localStorage.setItem('cb_username', name)
     setIsVerified(verified)
     setVerificationStatus(status)
+    if (name) setUserName(name)
     if (me.wallet_address) {
       localStorage.setItem('cb_wallet_address', me.wallet_address)
     } else {

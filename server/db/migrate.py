@@ -127,6 +127,25 @@ async def migrate() -> None:
         """)
 
         await conn.execute("""
+            ALTER TABLE recipients ADD COLUMN IF NOT EXISTS card_requested_at TIMESTAMPTZ
+        """)
+        await conn.execute("""
+            ALTER TABLE recipients ADD COLUMN IF NOT EXISTS card_mailing_address TEXT
+        """)
+        await conn.execute("""
+            ALTER TABLE recipients ADD COLUMN IF NOT EXISTS notify_email_disbursements BOOLEAN NOT NULL DEFAULT true
+        """)
+        await conn.execute("""
+            ALTER TABLE recipients ADD COLUMN IF NOT EXISTS notify_email_verification BOOLEAN NOT NULL DEFAULT true
+        """)
+        await conn.execute("""
+            ALTER TABLE recipients ADD COLUMN IF NOT EXISTS card_locked BOOLEAN NOT NULL DEFAULT false
+        """)
+        await conn.execute("""
+            ALTER TABLE recipients ADD COLUMN IF NOT EXISTS card_reissue_requested_at TIMESTAMPTZ
+        """)
+
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS didit_webhook_events (
                 event_id    TEXT PRIMARY KEY,
                 session_id  TEXT,

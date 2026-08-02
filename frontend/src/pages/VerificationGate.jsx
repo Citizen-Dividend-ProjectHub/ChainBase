@@ -3,6 +3,11 @@ import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 import VerificationModal from '../components/VerificationModal'
 
+const FINALIZING_COPY = {
+  title: 'Finalizing your verification…',
+  body: 'We\'re confirming your results with our verification provider. This page will update automatically — it usually only takes a few seconds.',
+}
+
 const COPY = {
   pending: {
     title: 'Verify your identity',
@@ -33,6 +38,7 @@ export default function VerificationGate({ status }) {
   const [starting, setStarting] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [finalizing, setFinalizing] = useState(false)
   const pollRef = useRef(null)
 
   useEffect(() => {
@@ -41,6 +47,20 @@ export default function VerificationGate({ status }) {
     }, 4000)
     return () => clearInterval(pollRef.current)
   }, [token, refreshMe])
+
+  // Didit's own iframe shows its "you're verified" screen the instant document/liveness
+  // capture succeeds, well before our webhook (and possibly a duplicate-identity check)
+  // gives us the real decision — without this, closing the modal at that point briefly
+  // shows "Start verification" again, since our status is still just 'pending'.
+  useEffect(() => {
+    if (status !== 'pending' && finalizing) setFinalizing(false)
+  }, [status, finalizing])
+
+  useEffect(() => {
+    if (!finalizing) return
+    const t = setTimeout(() => setFinalizing(false), 90000)
+    return () => clearTimeout(t)
+  }, [finalizing])
 
   useEffect(() => {
     if (pendingVerificationUrl) {
@@ -75,13 +95,18 @@ export default function VerificationGate({ status }) {
     }
   }
 
-  const copy = COPY[status] ?? COPY.pending
-  const canRetry = status === 'pending' || status === 'in_review'
+  const copy = finalizing ? FINALIZING_COPY : (COPY[status] ?? COPY.pending)
+  const canRetry = !finalizing && (status === 'pending' || status === 'in_review')
   const canDelete = status !== 'approved' && status !== 'name_change_review'
+
+  function handleModalClose() {
+    setVerificationUrl(null)
+    if (status === 'pending') setFinalizing(true)
+  }
 
   return (
     <div className="empty" style={{ paddingTop: 80, maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-      <div style={{ fontSize: 32, marginBottom: 12 }}>🪪</div>
+      <div style={{ fontSize: 32, marginBottom: 12 }}>{finalizing ? '⏳' : '🪪'}</div>
       <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 8 }}>{copy.title}</div>
       <div style={{ fontSize: 14, marginBottom: 20 }}>{copy.body}</div>
       {err && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 12 }}>{err}</p>}
@@ -118,7 +143,7 @@ export default function VerificationGate({ status }) {
       )}
 
       {verificationUrl && (
-        <VerificationModal verificationUrl={verificationUrl} onClose={() => setVerificationUrl(null)} />
+        <VerificationModal verificationUrl={verificationUrl} onClose={handleModalClose} />
       )}
     </div>
   )

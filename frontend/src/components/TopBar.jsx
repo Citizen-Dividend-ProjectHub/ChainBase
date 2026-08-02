@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 import Avatar from './Avatar'
@@ -27,8 +29,87 @@ function shortAddr(addr) {
   return addr ? addr.slice(0, 6) + '…' + addr.slice(-4) : ''
 }
 
+function AccountMenu() {
+  const { role, userName, logout } = useAuth()
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    function onClickOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  function go(path) {
+    setOpen(false)
+    navigate(path)
+  }
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        className="account-avatar-btn"
+        onClick={() => setOpen(o => !o)}
+        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', borderRadius: '50%' }}
+      >
+        <Avatar initials={initials(userName)} size={38} innerBg="#0d0d12" fontSize={12} />
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 10px)', right: 0, minWidth: 200, zIndex: 50,
+          background: 'var(--cb-card)', border: '1px solid var(--cb-border)',
+          borderRadius: 'var(--radius-lg)', boxShadow: '0 12px 28px rgba(0,0,0,.35)',
+          overflow: 'hidden', backdropFilter: 'blur(8px)',
+        }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--cb-border)' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--cb-text)' }}>{userName ?? 'Account'}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--cb-muted)', textTransform: 'capitalize' }}>{role}</div>
+          </div>
+          <div style={{ padding: 6 }}>
+            {role === 'recipient' && (
+              <>
+                <button
+                  onClick={() => go('/settings')}
+                  style={{
+                    width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '9px 10px', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--cb-text)',
+                  }}
+                >
+                  Settings
+                </button>
+                <button
+                  onClick={() => go('/wallet-settings')}
+                  style={{
+                    width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '9px 10px', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--cb-text)',
+                  }}
+                >
+                  Wallet settings
+                </button>
+              </>
+            )}
+            <button
+              onClick={logout}
+              style={{
+                width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer',
+                padding: '9px 10px', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--cb-red)',
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function TopBar() {
-  const { role, userName, walletAddress } = useAuth()
+  const { role, walletAddress } = useAuth()
   const { theme, toggleTheme } = useTheme()
 
   return (
@@ -44,7 +125,7 @@ export default function TopBar() {
             {shortAddr(walletAddress)}
           </div>
         )}
-        <Avatar initials={initials(userName)} size={38} innerBg="#0d0d12" fontSize={12} />
+        <AccountMenu />
       </div>
     </div>
   )

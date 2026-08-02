@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException
@@ -5,13 +6,14 @@ from fastapi import APIRouter, Depends, HTTPException
 import crud.administrator as admin_crud
 import crud.recipient as recipient_crud
 from core.config import settings
-from core.security import create_token
+from core.security import create_token, verify_password
 from db.pool import get_pool
 from dependencies import get_current_recipient, get_optional_user
 from didit.client import DiditError, create_verification_session
 from schemas.auth import (
-    AdminLoginRequest, RecipientLoginRequest, RecipientRegisterRequest,
-    SetWalletRequest, WalletRotationRequest,
+    AdminLoginRequest, ChangePasswordRequest, RecipientLoginRequest, RecipientRegisterRequest,
+    RequestCardRequest, SetCardLockRequest, SetWalletRequest, UpdateNotificationPrefsRequest,
+    UpdateProfileRequest, WalletRotationRequest,
 )
 from utils import WALLET_RE
 from wallet.jwt import mint_wallet_id_token
@@ -122,6 +124,124 @@ async def set_wallet(
         raise HTTPException(status_code=409, detail="Wallet address already in use.")
     if not updated:
         raise HTTPException(status_code=409, detail="Wallet already provisioned.")
+    return updated
+
+
+@router.post("/recipient/card")
+async def request_card(
+    body: RequestCardRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    if not body.mailing_address.strip():
+        raise HTTPException(status_code=400, detail="Mailing address is required.")
+    recipient = await recipient_crud.find(pool, current["recipient_id"])
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if recipient["wallet_address"] is None:
+        raise HTTPException(status_code=409, detail="A wallet is required before requesting a card.")
+    if recipient["card_requested_at"] is not None:
+        raise HTTPException(status_code=409, detail="Card already requested.")
+    updated = await recipient_crud.request_card(pool, current["recipient_id"], body.mailing_address.strip())
+    if not updated:
+        raise HTTPException(status_code=409, detail="Card already requested.")
+    return updated
+
+
+REISSUE_COOLDOWN_DAYS = 30
+
+
+def _reissue_cooldown_active(recipient: dict) -> bool:
+    requested_at = recipient.get("card_reissue_requested_at")
+    if not requested_at:
+        return False
+    return datetime.now(timezone.utc) - requested_at < timedelta(days=REISSUE_COOLDOWN_DAYS)
+
+
+@router.put("/recipient/card/lock")
+async def set_card_lock(
+    body: SetCardLockRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    recipient = await recipient_crud.find(pool, current["recipient_id"])
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if recipient["card_requested_at"] is None:
+        raise HTTPException(status_code=409, detail="You don't have a card yet.")
+    if _reissue_cooldown_active(recipient) and not body.locked:
+        raise HTTPException(
+            status_code=409,
+            detail="Your card is locked while a replacement is being processed and can't be unlocked manually.",
+        )
+    updated = await recipient_crud.set_card_locked(pool, current["recipient_id"], body.locked)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    return updated
+
+
+@router.post("/recipient/card/reissue")
+async def reissue_card(
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    recipient = await recipient_crud.find(pool, current["recipient_id"])
+    if not recipient:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    if recipient["card_requested_at"] is None:
+        raise HTTPException(status_code=409, detail="You don't have a card yet.")
+    if _reissue_cooldown_active(recipient):
+        next_eligible = recipient["card_reissue_requested_at"] + timedelta(days=REISSUE_COOLDOWN_DAYS)
+        raise HTTPException(
+            status_code=409,
+            detail=f"A new card was already requested recently. You can request another after "
+                   f"{next_eligible.date().isoformat()}.",
+        )
+    updated = await recipient_crud.reissue_card(pool, current["recipient_id"])
+    if not updated:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    return updated
+
+
+@router.patch("/recipient/profile")
+async def update_profile(
+    body: UpdateProfileRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    if not body.full_name.strip():
+        raise HTTPException(status_code=400, detail="Name is required.")
+    updated = await recipient_crud.update_profile(pool, current["recipient_id"], body.full_name.strip())
+    if not updated:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
+    return updated
+
+
+@router.post("/recipient/change-password", status_code=204)
+async def change_password(
+    body: ChangePasswordRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters.")
+    current_hash = await recipient_crud.get_password_hash(pool, current["recipient_id"])
+    if not current_hash or not verify_password(body.current_password, current_hash):
+        raise HTTPException(status_code=401, detail="Current password is incorrect.")
+    await recipient_crud.set_password(pool, current["recipient_id"], body.new_password)
+
+
+@router.put("/recipient/notifications")
+async def update_notifications(
+    body: UpdateNotificationPrefsRequest,
+    pool: asyncpg.Pool = Depends(get_pool),
+    current: dict = Depends(get_current_recipient),
+):
+    updated = await recipient_crud.update_notification_prefs(
+        pool, current["recipient_id"], body.notify_email_disbursements, body.notify_email_verification,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="Recipient not found.")
     return updated
 
 
