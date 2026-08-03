@@ -3,22 +3,22 @@ import { Link } from 'react-router-dom'
 
 const steps = [
   {
-    icon: '📝',
+    icon: '1',
     title: 'Enroll & verify',
     desc: 'Recipients register with a wallet address. Admins review and mark accounts eligible for the program.',
   },
   {
-    icon: '🔐',
+    icon: '2',
     title: 'Pool funded on-chain',
     desc: 'The Citizens Dividend funding pool is held in USDC on Ethereum, with balances visible to anyone.',
   },
   {
-    icon: '⚡',
+    icon: '3',
     title: 'Disbursed automatically',
     desc: 'Each cycle, eligible recipients are paid in USDC automatically — no manual transfers, no delays.',
   },
   {
-    icon: '🔎',
+    icon: '4',
     title: 'Verifiable on Etherscan',
     desc: 'Every disbursement produces a transaction hash recipients and auditors can check on-chain.',
   },
@@ -402,8 +402,8 @@ export default function Landing() {
         <div className="landing-blob landing-blob-d" />
 
         <span className="landing-orbit landing-orbit-1">Ξ</span>
-        <span className="landing-orbit landing-orbit-2">💵</span>
-        <span className="landing-orbit landing-orbit-3">🪙</span>
+        <span className="landing-orbit landing-orbit-2">$</span>
+        <span className="landing-orbit landing-orbit-3">¢</span>
         <span className="landing-orbit landing-orbit-4">◎</span>
 
         <div className="landing-badge">
@@ -492,7 +492,7 @@ export default function Landing() {
               move money out of it without your permission, and you don't need a bank to have
               one. When you sign up, ChainBase automatically creates a wallet for you, so you
               never have to touch anything crypto-related yourself. Already comfortable with a
-              wallet app like 🦊 MetaMask? You can connect that one instead.
+              wallet app like MetaMask? You can connect that one instead.
             </p>
           </Reveal>
         </div>
@@ -501,13 +501,13 @@ export default function Landing() {
           <Reveal className="landing-basics-media">
             <div style={{ width: '100%', textAlign: 'center' }}>
               <div className="usdc-equiv">
-                🪙 1 USDC <span className="usdc-equiv-eq">=</span> 💵 $1 USD
+                1 USDC <span className="usdc-equiv-eq">=</span> $1 USD
               </div>
               <div className="usdc-chips">
-                <span className="usdc-chip">🏠 Rent</span>
-                <span className="usdc-chip">🛒 Groceries</span>
-                <span className="usdc-chip">⛽ Gas</span>
-                <span className="usdc-chip">🧾 Bills</span>
+                <span className="usdc-chip">Rent</span>
+                <span className="usdc-chip">Groceries</span>
+                <span className="usdc-chip">Gas</span>
+                <span className="usdc-chip">Bills</span>
               </div>
             </div>
           </Reveal>
