@@ -100,7 +100,7 @@ async def get_recipient(
         "SELECT scheduled_date FROM disbursement_cycles WHERE status = 'pending' ORDER BY scheduled_date ASC LIMIT 1"
     )
     result = dict(recipient)
-    result["next_disbursement_date"] = str(next_cycle["scheduled_date"])[:10] if next_cycle else None
+    result["next_disbursement_date"] = next_cycle["scheduled_date"].isoformat() if next_cycle else None
     return result
 
 

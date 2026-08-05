@@ -7,15 +7,6 @@ import Badge from '../components/Badge'
 import CardManager from '../components/CardManager'
 import { useCountdown } from '../hooks/useCountdown'
 
-const AVATAR_GRADS = [
-  'conic-gradient(from -30deg,#4f8dff,#1a73e8,#34c98a)',
-  'conic-gradient(from -30deg,#4f8dff,#34c98a,#ffcb3d)',
-  'conic-gradient(from -30deg,#2f7ff0,#4f8dff,#34c98a)',
-  'conic-gradient(from -30deg,#4f8dff,#ffcb3d,#ff5c5c)',
-  'conic-gradient(from -30deg,#34c98a,#4f8dff,#1a73e8)',
-  'conic-gradient(from -30deg,#4f8dff,#1a73e8,#ff5c5c)',
-]
-
 function initials(name) {
   if (!name) return '?'
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -60,16 +51,12 @@ function AdminDashboard({ token }) {
   }, [token])
 
   if (loading) return <div className="empty">Loading…</div>
-  if (err)     return <div className="empty" style={{ color: 'var(--red)' }}>Error: {err}</div>
+  if (err)     return <div className="empty" style={{ color: 'var(--cb-bad)' }}>Error: {err}</div>
 
   const eligible       = recipients.filter(r => r.is_eligible).length
   const totalDisbursed = disbursements.filter(d => d.status === 'confirmed').reduce((s, d) => s + Number(d.amount), 0)
   const failedCount    = disbursements.filter(d => d.status === 'failed').length
 
-  // Derived program-health metrics — no dedicated backend endpoint for a fixed
-  // "standard dividend amount" exists yet, so we approximate it from the most
-  // recently scheduled cycle (same precedent as the "last confirmed amount"
-  // approximation already used for recipients below).
   const latestCycle  = cycles.length ? cycles.reduce((a, b) => (a.cycle_id > b.cycle_id ? a : b)) : null
   const assumedAmount = latestCycle ? Number(latestCycle.amount_per_recipient) : 0
   const cycleTotal    = eligible * assumedAmount
@@ -88,69 +75,61 @@ function AdminDashboard({ token }) {
 
       <div className="hero-grid">
         <div className="hero-card">
-          <div className="hero-card-blob" style={{ opacity: 0.24 }} />
-          <div style={{ position: 'relative' }}>
-            <div className="stat-label">Funding Pool Balance</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px 12px', marginTop: 14 }}>
-              <div className="cb-hero-grad tabular" style={{ fontSize: 52, fontWeight: 800, letterSpacing: '-1.5px', lineHeight: 1 }}>
-                ${poolBalance.toLocaleString()}
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--cb-muted)' }}>USDC</div>
+          <div className="stat-label">Funding Pool Balance</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px 12px', marginTop: 14 }}>
+            <div className="cb-hero-grad tabular" style={{ fontSize: 42, fontWeight: 700, letterSpacing: '-1px' }}>
+              ${poolBalance.toLocaleString()}
             </div>
-            <div style={{ fontSize: 13.5, color: 'var(--cb-muted)', marginTop: 10 }}>
-              {cycleTotal > 0
-                ? `Covers ≈ ${runwayCycles} more monthly cycle${runwayCycles === 1 ? '' : 's'} at current enrollment`
-                : 'No cycle amount to project runway from yet'}
-            </div>
-            <div style={{ marginTop: 22, height: 10, borderRadius: 999, background: 'var(--cb-border)', overflow: 'hidden' }}>
-              <div style={{
-                width: `${progressPct}%`, height: '100%', borderRadius: 999,
-                background: 'linear-gradient(90deg,#2f7ff0,#34c98a)', backgroundSize: '200% 100%',
-                animation: 'cbshimmer 4s linear infinite',
-              }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--cb-muted2)', marginTop: 8 }}>
-              <span>{timeAgo(pool?.last_synced_at) ?? 'Sync status unknown'}</span>
-              <span>{nextCycle ? `Next disbursement: ${nextCycle.scheduled_date?.slice(0, 10)}` : 'No cycle scheduled'}</span>
-            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--cb-muted)' }}>USDC</div>
+          </div>
+          <div style={{ fontSize: 13.5, color: 'var(--cb-muted)', marginTop: 10 }}>
+            {cycleTotal > 0
+              ? `Covers ≈ ${runwayCycles} more monthly cycle${runwayCycles === 1 ? '' : 's'} at current enrollment`
+              : 'No cycle amount to project runway from yet'}
+          </div>
+          <div style={{ marginTop: 20, height: 6, borderRadius: 999, background: 'var(--cb-fill)', border: '1px solid var(--cb-border)', overflow: 'hidden' }}>
+            <div style={{ width: `${progressPct}%`, height: '100%', borderRadius: 999, background: 'var(--cb-accent)' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: 'var(--cb-muted2)', marginTop: 8 }}>
+            <span>{timeAgo(pool?.last_synced_at) ?? 'Sync status unknown'}</span>
+            <span>{nextCycle ? `Next disbursement: ${nextCycle.scheduled_date?.slice(0, 10)}` : 'No cycle scheduled'}</span>
           </div>
         </div>
 
         <div className="hero-side-card">
           <div className="stat-label">Upcoming Cycle</div>
-          <div className="tabular" style={{ marginTop: 16, fontSize: 34, fontWeight: 800, letterSpacing: '-1px', backgroundImage: 'linear-gradient(110deg,#9fc4ff,#6fe6b4)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+          <div className="cb-hero-grad tabular" style={{ marginTop: 14, fontSize: 30, fontWeight: 700, letterSpacing: '-.5px' }}>
             {eligible.toLocaleString()}
           </div>
           <div style={{ fontSize: 13, color: 'var(--cb-muted)' }}>eligible recipients × ${assumedAmount.toLocaleString()}</div>
           <div style={{ height: 1, background: 'var(--cb-border)', margin: '18px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <span style={{ fontSize: 13, color: 'var(--cb-muted)' }}>Cycle total</span>
-            <span className="tabular" style={{ fontSize: 20, fontWeight: 700 }}>${cycleTotal.toLocaleString()}</span>
+            <span className="cb-hero-grad tabular" style={{ fontSize: 18, fontWeight: 600 }}>${cycleTotal.toLocaleString()}</span>
           </div>
           {shortfall > 0 && (
             <div style={{
-              marginTop: 14, padding: '10px 14px', borderRadius: 12,
-              background: 'rgba(255,92,92,.09)', border: '1px solid rgba(255,92,92,.24)',
-              fontSize: 12, color: '#ff8f8f',
+              marginTop: 14, padding: '10px 14px', borderRadius: 8,
+              background: 'var(--cb-fill)', border: '1px solid var(--cb-bad)',
+              fontSize: 12, color: 'var(--cb-bad)',
             }}>
-              ⚠ Pool short by ${shortfall.toLocaleString()} — top up before next cycle
+              Pool short by ${shortfall.toLocaleString()} — top up before next cycle
             </div>
           )}
         </div>
       </div>
 
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-        <StatCard label="Total Recipients"   value={recipients.length} hue="blue" sub={`${recipients.length} enrolled`} />
-        <StatCard label="Eligible"           value={eligible} hue="green" sub={recipients.length ? `${Math.round((eligible / recipients.length) * 100)}% of enrolled` : '—'} />
-        <StatCard label="Disbursed to Date"  value={`$${totalDisbursed.toLocaleString()}`} hue="gold" sub={`across ${cycles.filter(c => c.status === 'completed').length} cycles`} />
-        <StatCard label="Failed Payments"    value={failedCount} hue={failedCount > 0 ? 'red' : undefined} sub="last cycle" />
+        <StatCard label="Total Recipients"   value={recipients.length} sub={`${recipients.length} enrolled`} />
+        <StatCard label="Eligible"           value={eligible} sub={recipients.length ? `${Math.round((eligible / recipients.length) * 100)}% of enrolled` : '—'} />
+        <StatCard label="Disbursed to Date"  value={`$${totalDisbursed.toLocaleString()}`} sub={`across ${cycles.filter(c => c.status === 'completed').length} cycles`} />
+        <StatCard label="Failed Payments"    value={failedCount} sub="last cycle" />
       </div>
 
       <div className="card card-table">
-        <div className="card-table-hairline" />
         <div className="card-header">
           <span className="card-title">Recent Disbursements</span>
-          <Link to="/cycles" style={{ fontSize: 12.5, color: '#8ea2ff' }}>View all cycles →</Link>
+          <Link to="/cycles" style={{ fontSize: 12.5 }}>View all cycles →</Link>
         </div>
         <div className="table-wrap">
           <table>
@@ -161,17 +140,12 @@ function AdminDashboard({ token }) {
               {disbursements.length === 0 && (
                 <tr><td colSpan={5} className="empty">No disbursements yet.</td></tr>
               )}
-              {disbursements.slice(0, 10).map((d, i) => (
+              {disbursements.slice(0, 10).map(d => (
                 <tr key={d.disbursement_id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                        background: AVATAR_GRADS[i % AVATAR_GRADS.length],
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 10.5, fontWeight: 700, color: '#0b0b12',
-                      }}>
-                        {initials(d.recipient_name)}
+                      <div className="cb-avatar" style={{ width: 28, height: 28 }}>
+                        <span className="cb-avatar-inner" style={{ fontSize: 11 }}>{initials(d.recipient_name)}</span>
                       </div>
                       <span style={{ color: 'var(--cb-text2)' }}>{d.recipient_name ?? d.recipient_id}</span>
                     </div>
@@ -204,10 +178,16 @@ function CopyButton({ text }) {
   return (
     <button onClick={copy} title="Copy transaction hash" style={{
       background: 'none', border: 'none', cursor: 'pointer',
-      color: copied ? 'var(--cb-green)' : 'var(--cb-muted)',
+      color: copied ? 'var(--cb-good)' : 'var(--cb-muted)',
       fontSize: 12, padding: '0 4px', verticalAlign: 'middle',
+      display: 'inline-flex', alignItems: 'center',
     }}>
-      {copied ? '✓' : '⧉'}
+      {copied ? '✓' : (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <rect x="9" y="9" width="12" height="12" rx="1.5" />
+          <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+        </svg>
+      )}
     </button>
   )
 }
@@ -242,10 +222,10 @@ function RecipientDashboard({ token, userId, userName }) {
     load()
   }, [token, userId])
 
-  const countdown = useCountdown(profile?.next_disbursement_date ? `${profile.next_disbursement_date}T00:00:00` : null)
+  const countdown = useCountdown(profile?.next_disbursement_date ?? null)
 
   if (loading) return <div className="empty">Loading…</div>
-  if (err)     return <div className="empty" style={{ color: 'var(--red)' }}>Error: {err}</div>
+  if (err)     return <div className="empty" style={{ color: 'var(--cb-bad)' }}>Error: {err}</div>
 
   const confirmed      = disbursements.filter(d => d.status === 'confirmed')
   const failed         = disbursements.filter(d => d.status === 'failed')
@@ -265,30 +245,27 @@ function RecipientDashboard({ token, userId, userName }) {
 
       <div className="hero-grid">
         <div className="hero-card">
-          <div className="hero-card-blob" />
-          <div style={{ position: 'relative' }}>
-            <div className="stat-label">Current Balance</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px 12px', marginTop: 14 }}>
-              <div className="cb-hero-grad tabular" style={{ fontSize: 56, fontWeight: 800, letterSpacing: '-1.5px', lineHeight: 1 }}>
-                ${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--cb-muted)' }}>USDC</div>
+          <div className="stat-label">Current Balance</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px 12px', marginTop: 14 }}>
+            <div className="cb-hero-grad tabular" style={{ fontSize: 46, fontWeight: 700, letterSpacing: '-1px' }}>
+              ${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <div style={{ fontSize: 13.5, color: 'var(--cb-muted)', marginTop: 10 }}>
-              ≈ ${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD · on Ethereum
-            </div>
-            <div style={{ display: 'flex', gap: 10, marginTop: 26 }}>
-              {wallet && (
-                <a
-                  href={`https://sepolia.etherscan.io/address/${wallet}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-outline"
-                >
-                  View on Etherscan
-                </a>
-              )}
-            </div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--cb-muted)' }}>USDC</div>
+          </div>
+          <div style={{ fontSize: 13.5, color: 'var(--cb-muted)', marginTop: 10 }}>
+            ≈ ${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD · on Ethereum
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 22 }}>
+            {wallet && (
+              <a
+                href={`https://sepolia.etherscan.io/address/${wallet}`}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-outline"
+              >
+                View on Etherscan
+              </a>
+            )}
           </div>
         </div>
 
@@ -297,38 +274,37 @@ function RecipientDashboard({ token, userId, userName }) {
             <div className="stat-label">Next Dividend</div>
             <div className="badge badge-green">Auto</div>
           </div>
-          <div className="tabular" style={{ marginTop: 18, fontSize: 38, fontWeight: 800, letterSpacing: '-1px', backgroundImage: 'linear-gradient(110deg,#9fc4ff,#6fe6b4)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
-            ${lastAmount.toFixed(2)} <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--cb-muted)' }}>USDC</span>
+          <div className="cb-hero-grad tabular" style={{ marginTop: 16, fontSize: 32, fontWeight: 700, letterSpacing: '-.5px' }}>
+            ${lastAmount.toFixed(2)} <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--cb-muted)' }}>USDC</span>
           </div>
-          <div style={{ fontSize: 13.5, color: 'var(--cb-muted)', marginTop: 4 }}>
+          <div style={{ fontSize: 13, color: 'var(--cb-muted)', marginTop: 4 }}>
             {profile?.next_disbursement_date
-              ? new Date(`${profile.next_disbursement_date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+              ? new Date(profile.next_disbursement_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
               : 'No cycle scheduled'}
           </div>
           <div style={{ marginTop: 'auto', paddingTop: 20 }}>
-            <div style={{ fontSize: 11, letterSpacing: '.6px', textTransform: 'uppercase', color: 'var(--cb-muted2)', marginBottom: 8 }}>Arrives in</div>
-            <div className="tabular" style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 500, backgroundImage: 'linear-gradient(110deg,#7fb0ff,#4f8dff,#34c98a)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>
+            <div className="stat-label" style={{ marginBottom: 8 }}>Arrives in</div>
+            <div className="cb-hero-grad tabular" style={{ fontSize: 20, fontWeight: 600 }}>
               {countdown || '—'}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="card" style={{ padding: 24, marginBottom: 20 }}>
-        <div className="card-header" style={{ marginBottom: 16 }}>
+      <div className="card" style={{ padding: 22, marginBottom: 20 }}>
+        <div className="card-header" style={{ padding: 0, border: 'none', marginBottom: 16 }}>
           <span className="card-title">Your ChainBase Card</span>
         </div>
         <CardManager token={token} userId={userId} userName={userName} totalReceived={totalReceived} />
       </div>
 
       <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <StatCard label="Monthly Dividend" value={`$${lastAmount.toFixed(2)}`} hue="blue" sub="USDC · fixed" />
-        <StatCard label="Total Received"   value={`$${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} hue="green" sub={`${confirmed.length} payments`} />
-        <StatCard label="Payments"         value={disbursements.length} hue="gold" sub={`${onTimePct}% on time`} />
+        <StatCard label="Monthly Dividend" value={`$${lastAmount.toFixed(2)}`} sub="USDC · fixed" />
+        <StatCard label="Total Received"   value={`$${totalReceived.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} sub={`${confirmed.length} payments`} />
+        <StatCard label="Payments"         value={disbursements.length} sub={`${onTimePct}% on time`} />
       </div>
 
       <div className="card card-table">
-        <div className="card-table-hairline" />
         <div className="card-header">
           <span className="card-title">Payment History</span>
           <div className="badge badge-green">Disbursed 1st of every month</div>
@@ -361,7 +337,6 @@ function RecipientDashboard({ token, userId, userName }) {
                           target="_blank"
                           rel="noreferrer"
                           className="td-mono"
-                          style={{ color: '#8ea2ff' }}
                         >
                           {d.tx_hash.slice(0, 10)}…{d.tx_hash.slice(-6)}
                         </a>
