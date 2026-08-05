@@ -27,6 +27,15 @@ function ManageWalletButton() {
   )
 }
 
+function CopyIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="9" y="9" width="12" height="12" rx="1.5" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </svg>
+  )
+}
+
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
   function copy() {
@@ -40,8 +49,9 @@ function CopyButton({ text }) {
       background: 'none', border: 'none', cursor: 'pointer',
       color: copied ? 'var(--green-bright)' : 'var(--text-muted)',
       fontSize: 12, padding: '0 4px', verticalAlign: 'middle',
+      display: 'inline-flex', alignItems: 'center',
     }}>
-      {copied ? '✓' : '⧉'}
+      {copied ? '✓' : <CopyIcon />}
     </button>
   )
 }
@@ -126,7 +136,7 @@ function WalletCard({ token, userId }) {
 
         {pending ? (
           <div style={{
-            background: 'rgba(255,196,0,0.1)', border: '1px solid var(--yellow)',
+            background: 'var(--cb-fill)', border: '1px solid var(--yellow)',
             borderRadius: 'var(--radius)', padding: '10px 12px', fontSize: 13,
             color: 'var(--yellow)', marginBottom: 16,
           }}>

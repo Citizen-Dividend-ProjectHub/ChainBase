@@ -3,13 +3,8 @@ import { useNavigate, Link } from 'react-router-dom'
 import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 
-const blobStyle = `
+const authStyle = `
   .auth-bg { position: relative; min-height: 100vh; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 16px; }
-  .auth-blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.3; pointer-events: none; }
-  .auth-blob-a { width: 420px; height: 420px; background: var(--cb-blue); top: -140px; left: -110px; animation: landing-float 11s ease-in-out infinite; }
-  .auth-blob-b { width: 340px; height: 340px; background: var(--cb-green); top: 60px; right: -120px; animation: landing-float 13s ease-in-out infinite reverse; }
-  .auth-blob-c { width: 280px; height: 280px; background: var(--cb-gold); bottom: -120px; left: 40%; opacity: 0.18; animation: landing-float 15s ease-in-out infinite; animation-delay: -4s; }
-  @keyframes landing-float { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(24px,-32px) scale(1.06)} }
 `
 
 export default function Login() {
@@ -41,10 +36,7 @@ export default function Login() {
 
   return (
     <div className="auth-bg">
-      <style>{blobStyle}</style>
-      <div className="auth-blob auth-blob-a" />
-      <div className="auth-blob auth-blob-b" />
-      <div className="auth-blob auth-blob-c" />
+      <style>{authStyle}</style>
 
       <div style={{ width: '100%', maxWidth: 380, position: 'relative', zIndex: 1 }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
@@ -102,7 +94,7 @@ export default function Login() {
 
         <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'var(--text-muted)' }}>
           Not enrolled?{' '}
-          <Link to="/register" style={{ color: 'var(--green-bright)', textDecoration: 'none' }}>
+          <Link to="/register" style={{ color: 'var(--cb-accent)', textDecoration: 'none' }}>
             Create account
           </Link>
         </p>
@@ -115,10 +107,10 @@ export default function Login() {
         <div style={{ textAlign: 'center', marginTop: 16 }}>
           <Link to="/" style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
-            color: 'var(--green-bright)', textDecoration: 'none',
-            fontSize: 13, border: '1px solid var(--green)',
+            color: 'var(--cb-accent)', textDecoration: 'none',
+            fontSize: 13, border: '1px solid var(--cb-border-strong)',
             borderRadius: 20, padding: '6px 16px',
-            background: 'rgba(0,201,123,0.06)',
+            background: 'var(--cb-fill)',
           }}>
             ← Back to home
           </Link>

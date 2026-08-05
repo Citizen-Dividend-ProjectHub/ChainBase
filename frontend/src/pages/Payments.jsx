@@ -4,6 +4,15 @@ import { useAuth } from '../context/AuthContext'
 import Badge from '../components/Badge'
 import StatCard from '../components/StatCard'
 
+function CopyIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="9" y="9" width="12" height="12" rx="1.5" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </svg>
+  )
+}
+
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
   function copy() {
@@ -17,8 +26,9 @@ function CopyButton({ text }) {
       background: 'none', border: 'none', cursor: 'pointer',
       color: copied ? 'var(--green-bright)' : 'var(--text-muted)',
       fontSize: 12, padding: '0 4px', verticalAlign: 'middle', flexShrink: 0,
+      display: 'inline-flex', alignItems: 'center',
     }}>
-      {copied ? '✓' : '⧉'}
+      {copied ? '✓' : <CopyIcon />}
     </button>
   )
 }
@@ -78,13 +88,8 @@ export default function Payments() {
           <div className="page-subtitle">All Citizens Dividend disbursements to your wallet</div>
         </div>
         {wallet && (
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: 'rgba(0,201,123,0.08)', border: '1px solid var(--green)',
-            borderRadius: 20, padding: '6px 14px', fontSize: 12,
-            color: 'var(--green-bright)', fontFamily: 'var(--font-mono)',
-          }}>
-            <span style={{ fontSize: 10 }}>●</span>
+          <div className="wallet-pill">
+            <span className="wallet-pill-dot" />
             {wallet.slice(0, 6)}…{wallet.slice(-4)}
           </div>
         )}
@@ -155,7 +160,7 @@ export default function Payments() {
                       <span className="wallet">{wallet.slice(0, 6)}…{wallet.slice(-4)}</span>
                     ) : '—'}
                   </td>
-                  <td style={{ fontWeight: 600, color: 'var(--green-bright)' }}>
+                  <td style={{ fontWeight: 600, color: 'var(--text)' }}>
                     ${Number(d.amount).toFixed(2)} <span style={{ fontSize: 11, fontWeight: 400, color: 'var(--text-muted)' }}>USDC</span>
                   </td>
                   <td><Badge status={d.status} /></td>
@@ -167,7 +172,7 @@ export default function Payments() {
                           target="_blank"
                           rel="noreferrer"
                           className="td-mono"
-                          style={{ color: 'var(--green-bright)', textDecoration: 'none' }}
+                          style={{ color: 'var(--cb-accent)', textDecoration: 'none' }}
                           title={d.tx_hash}
                         >
                           {d.tx_hash.slice(0, 10)}…{d.tx_hash.slice(-6)}

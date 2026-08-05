@@ -55,7 +55,7 @@ function AccountMenu() {
         onClick={() => setOpen(o => !o)}
         style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', borderRadius: '50%' }}
       >
-        <Avatar initials={initials(userName)} size={38} innerBg="#0d0d12" fontSize={12} />
+        <Avatar initials={initials(userName)} size={38} fontSize={12} />
       </button>
 
       {open && (

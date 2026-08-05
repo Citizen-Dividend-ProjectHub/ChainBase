@@ -55,10 +55,6 @@ function ProtectedLayout() {
   }
   return (
     <div className="layout">
-      <div className="glow-blob glow-blob-a" />
-      <div className="glow-blob glow-blob-b" />
-      <div className="glow-blob glow-blob-c" />
-      <div className="glow-blob glow-blob-d" />
       <Sidebar />
       <main className="main">
         <TopBar />

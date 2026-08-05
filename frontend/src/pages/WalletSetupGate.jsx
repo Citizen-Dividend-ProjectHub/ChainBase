@@ -13,6 +13,42 @@ function shortAddr(addr) {
   return addr ? addr.slice(0, 6) + '...' + addr.slice(-4) : ''
 }
 
+function WalletIcon() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M3 8a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3" />
+      <path d="M3 8v10a2 2 0 0 0 2 2h14a1 1 0 0 0 1-1v-6a1 1 0 0 0-1-1h-4a2 2 0 1 0 0 4" />
+    </svg>
+  )
+}
+
+function CheckCircleIcon() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12.5l2.5 2.5L16 9.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function MailIcon() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M4 7l8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function CopyIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="9" y="9" width="12" height="12" rx="1.5" />
+      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+    </svg>
+  )
+}
+
 function CopyButton({ text }) {
   const [copied, setCopied] = useState(false)
   function copy() {
@@ -26,8 +62,9 @@ function CopyButton({ text }) {
       background: 'none', border: 'none', cursor: 'pointer',
       color: copied ? 'var(--green-bright)' : 'var(--text-muted)',
       fontSize: 13, padding: '0 4px', verticalAlign: 'middle',
+      display: 'inline-flex', alignItems: 'center', gap: 4,
     }}>
-      {copied ? '✓ Copied' : '⧉ Copy'}
+      {copied ? '✓ Copied' : <><CopyIcon /> Copy</>}
     </button>
   )
 }
@@ -193,9 +230,9 @@ function ExistingWalletConnect({ onCreated }) {
         {walletConnected ? (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 8,
-            background: 'rgba(0,201,123,0.08)', border: '1px solid var(--green)',
+            background: 'var(--cb-accent-soft)', border: '1px solid var(--cb-accent)',
             borderRadius: 'var(--radius)', padding: '8px 12px', fontSize: 13,
-            color: 'var(--green-bright)',
+            color: 'var(--cb-accent)',
           }}>
             <span style={{ fontSize: 16 }}>✓</span>
             {shortAddr(address)} connected
@@ -214,12 +251,12 @@ function ExistingWalletConnect({ onCreated }) {
             onClick={connectMetaMask}
             style={{
               marginTop: 10, width: '100%', padding: '9px 14px',
-              background: 'var(--green)', color: '#fff', border: 'none',
+              background: 'var(--cb-accent)', color: '#fff', border: 'none',
               borderRadius: 'var(--radius)', fontSize: 13, fontWeight: 500, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             }}
           >
-            <span>🦊</span> Connect MetaMask
+            Connect MetaMask
           </button>
         ) : (
           <div style={{
@@ -236,10 +273,10 @@ function ExistingWalletConnect({ onCreated }) {
               rel="noreferrer"
               style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13,
-                color: 'var(--green-bright)', textDecoration: 'none', fontWeight: 500,
+                color: 'var(--cb-accent)', textDecoration: 'none', fontWeight: 500,
               }}
             >
-              🦊 Install MetaMask →
+              Install MetaMask →
             </a>
             <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
               After installing, come back to this page and refresh to connect — or paste an address above
@@ -311,7 +348,7 @@ export default function WalletSetupGate() {
   if (createdWallet && cardPhase === 'revealed') {
     return (
       <div className="empty" style={{ paddingTop: 80, maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>🎉</div>
+        <div style={{ marginBottom: 12, color: 'var(--cb-muted)', display: 'flex', justifyContent: 'center' }}><CheckCircleIcon /></div>
         <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 8 }}>Your card is ready</div>
         <div style={{ fontSize: 14, marginBottom: 24 }}>
           You can use your digital card right away. We've saved your mailing address for ChainBase's
@@ -335,7 +372,7 @@ export default function WalletSetupGate() {
   if (createdWallet && cardPhase === 'address') {
     return (
       <div className="empty" style={{ paddingTop: 80, maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>📬</div>
+        <div style={{ marginBottom: 12, color: 'var(--cb-muted)', display: 'flex', justifyContent: 'center' }}><MailIcon /></div>
         <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 8 }}>Where should we send it?</div>
         <div style={{ fontSize: 14, marginBottom: 20 }}>
           We'll save this mailing address for ChainBase's card program, so it's ready when physical
@@ -359,7 +396,7 @@ export default function WalletSetupGate() {
   if (createdWallet) {
     return (
       <div className="empty" style={{ paddingTop: 80, maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ fontSize: 32, marginBottom: 12 }}>✅</div>
+        <div style={{ marginBottom: 12, color: 'var(--cb-muted)', display: 'flex', justifyContent: 'center' }}><CheckCircleIcon /></div>
         <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 8 }}>Wallet created</div>
         <div style={{ fontSize: 14, marginBottom: 20 }}>
           {createdWallet.type === 'embedded'
@@ -406,7 +443,7 @@ export default function WalletSetupGate() {
 
   return (
     <div className="empty" style={{ paddingTop: 80, maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-      <div style={{ fontSize: 32, marginBottom: 12 }}>👛</div>
+      <div style={{ marginBottom: 12, color: 'var(--cb-muted)', display: 'flex', justifyContent: 'center' }}><WalletIcon /></div>
       <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 8 }}>Set up your wallet</div>
       <div style={{ fontSize: 14, marginBottom: 20 }}>
         Your monthly USDC dividend is sent directly to an Ethereum wallet — think of it like an account

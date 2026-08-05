@@ -4,17 +4,27 @@ import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 import Badge from '../components/Badge'
 
+function WarningIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ verticalAlign: '-2px' }}>
+      <path d="M12 3.5 2 20h20L12 3.5z" strokeLinejoin="round" />
+      <path d="M12 10v4" strokeLinecap="round" />
+      <circle cx="12" cy="17" r="0.6" fill="currentColor" />
+    </svg>
+  )
+}
+
 const MCC_OPTIONS = [
-  { code: '5411', label: 'Grocery Store',         restricted: false, icon: '🛒' },
-  { code: '5812', label: 'Restaurant',            restricted: false, icon: '🍽' },
-  { code: '5541', label: 'Gas Station',           restricted: false, icon: '⛽' },
-  { code: '5999', label: 'Retail / Shopping',     restricted: false, icon: '🛍' },
-  { code: '7011', label: 'Hotel / Lodging',       restricted: false, icon: '🏨' },
-  { code: '4111', label: 'Transit / Transport',   restricted: false, icon: '🚌' },
-  { code: '5921', label: 'Liquor Store',          restricted: true,  icon: '🍺' },
-  { code: '5813', label: 'Bar / Cocktail Lounge', restricted: true,  icon: '🍸' },
-  { code: '5993', label: 'Tobacco Shop',          restricted: true,  icon: '🚬' },
-  { code: '7995', label: 'Casino / Gambling',     restricted: true,  icon: '🎰' },
+  { code: '5411', label: 'Grocery Store',         restricted: false },
+  { code: '5812', label: 'Restaurant',            restricted: false },
+  { code: '5541', label: 'Gas Station',           restricted: false },
+  { code: '5999', label: 'Retail / Shopping',     restricted: false },
+  { code: '7011', label: 'Hotel / Lodging',       restricted: false },
+  { code: '4111', label: 'Transit / Transport',   restricted: false },
+  { code: '5921', label: 'Liquor Store',          restricted: true },
+  { code: '5813', label: 'Bar / Cocktail Lounge', restricted: true },
+  { code: '5993', label: 'Tobacco Shop',          restricted: true },
+  { code: '7995', label: 'Casino / Gambling',     restricted: true },
 ]
 
 const QUICK_AMOUNTS = [10, 25, 50, 100, 250]
@@ -112,7 +122,7 @@ export default function Wallet() {
             <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 6 }}>
               Available Balance
             </div>
-            <div style={{ fontSize: 40, fontWeight: 800, color: balance > 0 ? 'var(--green-bright)' : 'var(--red)', lineHeight: 1 }}>
+            <div style={{ fontSize: 40, fontWeight: 800, color: 'var(--text)', fontFamily: 'var(--font-mono)', lineHeight: 1 }}>
               ${Number(balance).toFixed(2)}
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>USDC · Citizens Dividend</div>
@@ -137,7 +147,7 @@ export default function Wallet() {
         {balance === 0 && (
           <div style={{
             margin: '0 20px 20px', padding: '10px 14px', borderRadius: 8, fontSize: 13,
-            background: 'rgba(248,81,73,0.08)', border: '1px solid var(--red)', color: 'var(--red)',
+            background: 'var(--cb-fill)', border: '1px solid var(--red)', color: 'var(--red)',
           }}>
             Your balance is empty. Spending is disabled until your next disbursement.
           </div>
@@ -152,8 +162,8 @@ export default function Wallet() {
             <span className="card-title">Spend Tokens</span>
             {restricted && (
               <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4,
-                background: 'rgba(248,81,73,0.12)', color: 'var(--red)', border: '1px solid var(--red)' }}>
-                ⚠ Restricted category
+                background: 'var(--cb-fill)', color: 'var(--red)', border: '1px solid var(--red)' }}>
+                <WarningIcon /> Restricted category
               </span>
             )}
           </div>
@@ -187,9 +197,9 @@ export default function Wallet() {
                     onClick={() => { setAmount(String(a)); amountRef.current?.focus() }}
                     style={{
                       padding: '4px 10px', borderRadius: 6, fontSize: 12, cursor: a > balance ? 'not-allowed' : 'pointer',
-                      background: String(a) === amount ? 'var(--green)' : 'var(--bg-2)',
+                      background: String(a) === amount ? 'var(--cb-accent)' : 'var(--bg-2)',
                       color: String(a) === amount ? '#fff' : a > balance ? 'var(--text-muted)' : 'var(--text)',
-                      border: `1px solid ${String(a) === amount ? 'var(--green)' : 'var(--border)'}`,
+                      border: `1px solid ${String(a) === amount ? 'var(--cb-accent)' : 'var(--border)'}`,
                       opacity: a > balance ? 0.4 : 1,
                     }}
                   >
@@ -232,9 +242,7 @@ export default function Wallet() {
                       display: 'flex', alignItems: 'center', gap: 8,
                       padding: '8px 12px', borderRadius: 7, cursor: balance <= 0 ? 'not-allowed' : 'pointer',
                       fontSize: 13, textAlign: 'left',
-                      background: mcc === o.code
-                        ? (o.restricted ? 'rgba(248,81,73,0.12)' : 'rgba(63,185,80,0.12)')
-                        : 'var(--bg)',
+                      background: mcc === o.code ? 'var(--cb-fill)' : 'var(--bg)',
                       border: `1px solid ${mcc === o.code
                         ? (o.restricted ? 'var(--red)' : 'var(--green)')
                         : 'var(--border)'}`,
@@ -244,7 +252,6 @@ export default function Wallet() {
                       opacity: balance <= 0 ? 0.5 : 1,
                     }}
                   >
-                    <span style={{ fontSize: 16 }}>{o.icon}</span>
                     <span style={{ lineHeight: 1.2 }}>{o.label}</span>
                   </button>
                 ))}
@@ -260,16 +267,14 @@ export default function Wallet() {
               {buying
                 ? 'Processing…'
                 : parsedAmt > 0
-                  ? `${restricted ? '⚠ Spend' : 'Spend'} $${parsedAmt.toFixed(2)} at ${selectedMcc?.label}`
+                  ? `Spend $${parsedAmt.toFixed(2)} at ${selectedMcc?.label}`
                   : 'Enter an amount'}
             </button>
 
             {result && (
               <div style={{
                 marginTop: 14, padding: '12px 14px', borderRadius: 8, fontSize: 13,
-                background: result.ok
-                  ? (result.restricted ? 'rgba(210,153,34,0.1)' : 'rgba(63,185,80,0.1)')
-                  : 'rgba(248,81,73,0.1)',
+                background: 'var(--cb-fill)',
                 border: `1px solid ${result.ok ? (result.restricted ? 'var(--yellow)' : 'var(--green)') : 'var(--red)'}`,
                 color: result.ok ? (result.restricted ? 'var(--yellow)' : 'var(--green-bright)') : 'var(--red)',
               }}>
@@ -356,10 +361,9 @@ export default function Wallet() {
                   <div key={o.code} style={{
                     display: 'flex', alignItems: 'center', gap: 8,
                     padding: '6px 10px', borderRadius: 6, fontSize: 13,
-                    background: 'rgba(248,81,73,0.06)', border: '1px solid rgba(248,81,73,0.2)',
+                    background: 'var(--cb-fill)', border: '1px solid var(--cb-border)',
                     color: 'var(--text)',
                   }}>
-                    <span>{o.icon}</span>
                     <span>{o.label}</span>
                   </div>
                 ))}

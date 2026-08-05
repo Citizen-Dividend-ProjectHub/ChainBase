@@ -97,7 +97,7 @@ function PeriodNav({ value, onChange }) {
       <button
         type="button"
         onClick={() => onChange(currentPeriod())}
-        style={{ ...navBtn, fontSize: 11, padding: '3px 8px', color: 'var(--green-bright)', borderColor: 'var(--green)' }}
+        style={{ ...navBtn, fontSize: 11, padding: '3px 8px', color: 'var(--cb-accent)', borderColor: 'var(--cb-accent)' }}
       >
         Today
       </button>
@@ -129,7 +129,7 @@ function PeriodNav({ value, onChange }) {
                   style={{
                     padding: '6px 0', borderRadius: 6, fontSize: 12, fontWeight: isActive ? 700 : 400,
                     cursor: 'pointer', border: 'none',
-                    background: isActive ? 'var(--green)' : 'transparent',
+                    background: isActive ? 'var(--cb-accent)' : 'transparent',
                     color: isActive ? '#fff' : 'var(--text)',
                   }}
                   onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg)' }}
@@ -155,8 +155,8 @@ function RecipientCard({ recipient, selected, onClick }) {
       style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
         padding: '10px 8px', borderRadius: 8, cursor: 'pointer', width: '100%',
-        background: selected ? 'rgba(63,185,80,0.12)' : 'var(--bg)',
-        border: `1px solid ${selected ? 'var(--green)' : 'var(--border)'}`,
+        background: selected ? 'var(--cb-accent-soft)' : 'var(--bg)',
+        border: `1px solid ${selected ? 'var(--cb-accent)' : 'var(--border)'}`,
         transition: 'border-color .15s, background .15s',
       }}
     >
@@ -164,7 +164,7 @@ function RecipientCard({ recipient, selected, onClick }) {
         width: 36, height: 36, borderRadius: '50%', display: 'flex',
         alignItems: 'center', justifyContent: 'center', fontWeight: 700,
         fontSize: 13, flexShrink: 0,
-        background: selected ? 'var(--green)' : 'var(--bg-2)',
+        background: selected ? 'var(--cb-accent)' : 'var(--bg-2)',
         color: selected ? '#fff' : 'var(--text-muted)',
       }}>
         {initials(recipient.full_name)}
@@ -173,7 +173,7 @@ function RecipientCard({ recipient, selected, onClick }) {
         {recipient.full_name.split(' ')[0]}
       </span>
       {!recipient.is_eligible && (
-        <span style={{ fontSize: 9, color: 'var(--red)', background: 'rgba(248,81,73,0.1)', padding: '1px 5px', borderRadius: 4 }}>
+        <span style={{ fontSize: 9, color: 'var(--red)', background: 'var(--cb-fill)', padding: '1px 5px', borderRadius: 4 }}>
           ineligible
         </span>
       )}
@@ -366,9 +366,7 @@ export default function Bonuses() {
                     style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '7px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 13,
-                      background: simMcc === o.code
-                        ? (o.restricted ? 'rgba(248,81,73,0.12)' : 'rgba(63,185,80,0.12)')
-                        : 'var(--bg)',
+                      background: simMcc === o.code ? 'var(--cb-fill)' : 'var(--bg)',
                       border: `1px solid ${simMcc === o.code
                         ? (o.restricted ? 'var(--red)' : 'var(--green)')
                         : 'var(--border)'}`,
@@ -380,7 +378,7 @@ export default function Bonuses() {
                     <span>{o.label}</span>
                     {o.restricted && (
                       <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4,
-                        background: 'rgba(248,81,73,0.15)', color: 'var(--red)' }}>
+                        background: 'var(--cb-fill)', color: 'var(--red)' }}>
                         restricted
                       </span>
                     )}
@@ -401,7 +399,7 @@ export default function Bonuses() {
             {simResult && (
               <div style={{
                 marginTop: 12, padding: '10px 12px', borderRadius: 'var(--radius)', fontSize: 13,
-                background: simResult.error ? 'rgba(248,81,73,0.1)' : simResult.restricted ? 'rgba(210,153,34,0.1)' : 'rgba(63,185,80,0.1)',
+                background: 'var(--cb-fill)',
                 border: `1px solid ${simResult.error ? 'var(--red)' : simResult.restricted ? 'var(--yellow)' : 'var(--green)'}`,
                 color: simResult.error ? 'var(--red)' : simResult.restricted ? 'var(--yellow)' : 'var(--green-bright)',
               }}>
@@ -437,8 +435,8 @@ export default function Bonuses() {
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '10px 14px', borderRadius: 8, cursor: 'pointer', textAlign: 'left',
-                        background: isSelected ? 'rgba(63,185,80,0.1)' : 'var(--bg)',
-                        border: `1px solid ${isSelected ? 'var(--green)' : 'var(--border)'}`,
+                        background: isSelected ? 'var(--cb-accent-soft)' : 'var(--bg)',
+                        border: `1px solid ${isSelected ? 'var(--cb-accent)' : 'var(--border)'}`,
                       }}
                     >
                       <div>
@@ -467,7 +465,7 @@ export default function Bonuses() {
             {bonusPreview && (
               <div style={{
                 padding: '10px 14px', borderRadius: 8, marginBottom: 14,
-                background: 'rgba(63,185,80,0.07)', border: '1px solid var(--green)',
+                background: 'var(--cb-fill)', border: '1px solid var(--green)',
               }}>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Bonus per eligible recipient</div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--green-bright)' }}>${bonusPreview} USDC</div>
@@ -489,7 +487,7 @@ export default function Bonuses() {
             {calcMsg && (
               <div style={{
                 marginTop: 12, padding: '10px 12px', borderRadius: 'var(--radius)', fontSize: 13,
-                background: 'rgba(63,185,80,0.1)', border: '1px solid var(--green)', color: 'var(--green-bright)',
+                background: 'var(--cb-fill)', border: '1px solid var(--green)', color: 'var(--green-bright)',
               }}>
                 {calcMsg}
               </div>

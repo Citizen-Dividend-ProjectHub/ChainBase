@@ -3,6 +3,25 @@ import { apiFetch } from '../api'
 import { useAuth } from '../context/AuthContext'
 import VerificationModal from '../components/VerificationModal'
 
+function IdCardIcon() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <rect x="2.5" y="5" width="19" height="14" rx="2.2" />
+      <circle cx="8.5" cy="12" r="2.1" />
+      <path d="M13.5 10h5M13.5 14h5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function ClockIcon() {
+  return (
+    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 const FINALIZING_COPY = {
   title: 'Finalizing your verification…',
   body: 'We\'re confirming your results with our verification provider. This page will update automatically — it usually only takes a few seconds.',
@@ -106,7 +125,9 @@ export default function VerificationGate({ status }) {
 
   return (
     <div className="empty" style={{ paddingTop: 80, maxWidth: 480, margin: '0 auto', textAlign: 'center' }}>
-      <div style={{ fontSize: 32, marginBottom: 12 }}>{finalizing ? '⏳' : '🪪'}</div>
+      <div style={{ marginBottom: 12, color: 'var(--cb-muted)', display: 'flex', justifyContent: 'center' }}>
+        {finalizing ? <ClockIcon /> : <IdCardIcon />}
+      </div>
       <div style={{ fontSize: 18, color: 'var(--text)', marginBottom: 8 }}>{copy.title}</div>
       <div style={{ fontSize: 14, marginBottom: 20 }}>{copy.body}</div>
       {err && <p style={{ color: 'var(--red)', fontSize: 13, marginBottom: 12 }}>{err}</p>}
