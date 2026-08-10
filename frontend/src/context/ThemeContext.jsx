@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 const ThemeContext = createContext(null)
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem('cb_theme') ?? 'dark')
+  const [theme, setTheme] = useState(() => localStorage.getItem('cb_theme') ?? 'light')
 
   useEffect(() => {
     // Applied to <html> (not <body>) so it lands on the same element as the
