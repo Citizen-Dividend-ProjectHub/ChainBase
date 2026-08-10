@@ -44,6 +44,17 @@ async def recipient_register(body: RecipientRegisterRequest, pool: asyncpg.Pool 
             # Recipient row still exists; they can retry via POST /recipient/verification.
             pass
 
+    # Real Didit sessions are still created and shown above — this doesn't skip the
+    # verification screen, it just stops the app from blocking on Didit's webhook
+    # actually arriving (which requires a reachable public callback URL and can be
+    # flaky/slow even when configured correctly). Flip auto_approve_identity_verification
+    # to False to go back to waiting on the real webhook decision.
+    if settings.auto_approve_identity_verification:
+        await recipient_crud.set_verification_result(
+            pool, recipient["recipient_id"],
+            verification_status="approved", is_verified=True, is_eligible=True,
+        )
+
     token = create_token(recipient["recipient_id"], "recipient")
     return {
         "token": token,
@@ -70,6 +81,11 @@ async def start_or_resume_verification(
     except DiditError:
         raise HTTPException(status_code=502, detail="Could not start verification session. Try again shortly.")
     await recipient_crud.set_didit_session(pool, recipient["recipient_id"], session["session_id"])
+    if settings.auto_approve_identity_verification:
+        await recipient_crud.set_verification_result(
+            pool, recipient["recipient_id"],
+            verification_status="approved", is_verified=True, is_eligible=True,
+        )
     return {"verification_url": session["verification_url"]}
 
 

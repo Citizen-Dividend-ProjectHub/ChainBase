@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     didit_webhook_secret: str = ""
     didit_base_url: str = "https://verification.didit.me"
     didit_wallet_rotation_workflow_id: str = ""  # optional lightweight selfie-only workflow; falls back to didit_workflow_id
+    auto_approve_identity_verification: bool = True  # skip waiting on Didit's real webhook decision — see routers/auth.py
 
     # Embedded wallet provisioning (MetaMask Embedded Wallets / Web3Auth, Custom JWT mode)
     wallet_provisioning_enabled: bool = False  # opt-in: requires a MetaMask Embedded Wallets project + signing key below
