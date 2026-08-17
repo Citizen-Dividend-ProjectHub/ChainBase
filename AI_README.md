@@ -41,10 +41,11 @@ Only two roles exist. There is no policy-simulation or additional role tier.
 **Administrator**
 - Views aggregate program data: total enrolled recipients, funding pool balance, total disbursed to date.
 - Enrolls recipients directly (admin-enrolled recipients skip Didit verification and start already approved — an admin has already vetted them).
-- Revokes / reinstates recipient eligibility.
+- Revokes recipient eligibility via a **peer-review workflow**, not an instant action: revoking requires a written reason and creates a `pending` `revocation_requests` row; a **different** admin must approve it before the recipient is actually revoked (self-approval is blocked server-side, mirroring the existing `bonus_awards` pending/approved pattern). Reinstating a revoked recipient remains a direct, single-admin action.
 - Reviews **flagged-duplicate** identity cases (two recipients whose Didit-verified identity hash collides) and **name-change-review** cases (a re-verification whose legal name no longer matches the stored identity hash) — both routed to the admin Recipients view for manual resolution.
 - Reviews and approves/denies monthly **spending bonus** awards (10% bonus for recipients with zero restricted-category purchases that period).
 - Views the full on-chain disbursement log per cycle for audit purposes.
+- Changes their own password via a role-aware Settings page (same self-service pattern as recipients).
 - Does **not** manually trigger disbursements (see §3).
 
 ---
@@ -58,7 +59,7 @@ These are current and take precedence over anything that conflicts with them:
 | Chain | Ethereum (existing public chain — not a custom chain) |
 | Token | USDC (existing stablecoin — not a custom token or stablecoin) |
 | Disbursement trigger | **Fully automatic**, via **APScheduler** on the backend — not admin-triggered |
-| Identity verification | **Didit** (hosted KYC provider), mandatory before wallet setup. Sybil resistance via a deterministic SHA-256 hash of normalized (first name, last name, DOB) — a second recipient whose hash matches an already-approved recipient is flagged (`flagged_duplicate`) and routed to admin review instead of being activated. |
+| Identity verification | **Didit** (hosted KYC provider), mandatory before wallet setup. Sybil resistance via a deterministic SHA-256 hash of normalized (first name, last name, DOB) — a second recipient whose hash matches an already-approved recipient is flagged (`flagged_duplicate`) and routed to admin review instead of being activated. **Current runtime default (`auto_approve_identity_verification=True` in `core/config.py`) auto-approves the recipient immediately after the Didit session is created**, in both `recipient_register` and `POST /auth/recipient/verification` — this was added because Didit's real webhook needs a public callback URL and wasn't reliably reaching the deployed backend, so recipients were getting stuck on the verification screen during demos. The real Didit hosted flow is still shown; only the blocking-on-webhook behavior is skipped. Flip the setting to `False` to go back to waiting on Didit's real decision. Does **not** apply to wallet-rotation or reverification sessions — those always wait on a real Didit decision. |
 | Wallet integration | Self-custodial, recipient-controlled. Default path is an **auto-provisioned embedded wallet** (MetaMask Embedded Wallets / Web3Auth MPC, Custom JWT minted by our backend) — no seed phrase, no MetaMask install required. Recipients may instead connect an **existing external wallet**. Either way, recipients (not admins, not the scheduler) hold their own keys; the scheduler only ever calls the Distributor contract, never a recipient's wallet. |
 | ChainBase virtual card | Visual only — no real card-issuer partnership (e.g. Rain, Bridge) exists. The "card number" shown is the recipient's real wallet address, deliberately **not** invented account/routing numbers. Locking the card is real (blocks `/spending/purchase`); "getting a new card" locks the old one and starts a real 30-day cooldown, mirroring real-world lost-card handling, even though no physical card is mailed today. |
 | Roles | Recipient and Administrator only |
@@ -153,6 +154,10 @@ Reflects `server/db/migrate.py` (the source of truth — idempotent `CREATE TABL
 
 **bonus_awards** — the monthly bonus-eligibility review: `bonus_id` (PK), `recipient_id` (FK), `cycle_id` (FK), `period`, `amount`, `status` (`pending`/approved/denied), `reviewed_by` (FK, nullable), `reviewed_at`, `created_at`, unique on `(recipient_id, cycle_id)`.
 
+**revocation_requests** — the peer-review recipient-revocation workflow (see §2): `request_id` (PK), `recipient_id` (FK), `requested_by` (FK → administrators, nullable), `reason` (TEXT NOT NULL), `status` (`pending`/approved/denied), `reviewed_by` (FK → administrators, nullable), `reviewed_at`, `created_at`. Approval is blocked server-side when `reviewed_by` would equal `requested_by`.
+
+`migrate.py` also seeds two rows on every run (both idempotent): a zero-balance `funding_pool` row if none exists, and a demo administrator (`chainbase_demo_admin`) via `ON CONFLICT (administrator_name) DO NOTHING`, so a fresh database always has at least one working admin login without a manual seed step.
+
 ---
 
 ## 5. API Contract
@@ -175,18 +180,20 @@ Grouped by concern. All recipient-authenticated routes require a bearer JWT for 
 - `PUT /card/lock` → `{ locked }` — blocked from manual unlock while a reissue cooldown is active.
 - `POST /card/reissue` — force-locks the current card, starts the 30-day cooldown; 409s if one is already active.
 
-**Account settings** (`/api/auth/recipient/...`)
-- `PATCH /profile` → `{ full_name }`.
-- `POST /change-password` → `{ current_password, new_password }`.
-- `PUT /notifications` → `{ notify_email_disbursements, notify_email_verification }`.
+**Account settings**
+- `PATCH /api/auth/recipient/profile` → `{ full_name }`.
+- `POST /api/auth/recipient/change-password` → `{ current_password, new_password }`.
+- `POST /api/auth/admin/change-password` → `{ current_password, new_password }` (admin self-service, same pattern as recipients).
+- `PUT /api/auth/recipient/notifications` → `{ notify_email_disbursements, notify_email_verification }`.
 
 **Webhooks**
 - `POST /api/webhooks/didit` — HMAC-SHA256-signed (`X-Signature-Simple`, 300s replay window), processes verification/reverification/wallet-rotation decisions asynchronously; deduplicated via `didit_webhook_events`.
 - `POST /api/spending/webhooks/stripe` — issuing-transaction webhook shape kept for the simulated spending tracker (see §2).
 
 **Recipients** (`/api/recipients`)
-- `GET ""` (admin, `?is_eligible=`), `GET "/{id}"` (self or admin), `POST ""` (admin enroll — auto-approved, skips Didit).
-- `PATCH "/{id}/revoke"`, `PATCH "/{id}/reinstate"` (admin).
+- `GET ""` (admin, `?is_eligible=&verification_status=`), `GET "/{id}"` (self or admin), `POST ""` (admin enroll — auto-approved, skips Didit).
+- `PATCH "/{id}/revoke"` → `{ reason }` (admin — creates a `pending` revocation request, does **not** revoke immediately; 409 if one is already pending for this recipient; see §2). `PATCH "/{id}/reinstate"` (admin — direct, single-admin action).
+- `GET "/revocation-requests"` (admin — list pending), `PATCH "/revocation-requests/{request_id}/approve"`, `PATCH "/revocation-requests/{request_id}/deny"` (admin — 403 if the reviewing admin is the same one who requested it; 409 if already resolved). These three routes are registered before `GET "/{id}"` so Starlette's greedy `{id}` route doesn't shadow the literal `revocation-requests` path.
 - `PATCH "/{id}/resolve-duplicate"`, `PATCH "/{id}/resolve-name-change"` (admin — resolves the two identity-review states from §3).
 - `GET "/{id}/disbursements"` (self or admin).
 
@@ -242,8 +249,9 @@ Stretch features from the original spec (idle-balance reminders, spending sugges
 
 **Identity, wallet & card layer**
 - Core flow (register → Didit verify → wallet setup → dashboard) is built and tested end-to-end, including the duplicate-identity and name-change-review admin paths.
-- Known limitation: Didit's real webhook cannot reach a local dev backend (no public URL) — local testing requires manually simulating a signed webhook call (see any recent session transcript for the exact HMAC construction) or a tunnel (ngrok) pointed at Didit's dashboard config. Works natively against the deployed Render URL.
-- Production database migrations are **not** run automatically on deploy — `server/db/migrate.py` must be run against the production `DATABASE_URL` manually after each deploy that adds columns (it's idempotent — safe to re-run even if some columns already exist).
+- Known limitation: Didit's real webhook cannot reach a local dev backend (no public URL) — local testing requires manually simulating a signed webhook call (see any recent session transcript for the exact HMAC construction) or a tunnel (ngrok) pointed at Didit's dashboard config. This is why `auto_approve_identity_verification` defaults to `True` in production too (see §3) — even the deployed Render URL wasn't reliably receiving the webhook. Wallet-rotation and reverification still wait on the real decision, so the manual-simulation/ngrok workaround is still needed for testing those paths.
+- `render.yaml` builds the frontend (`npm install && npm run build`) as part of every Render deploy, so a stale `frontend/dist` no longer needs a manual rebuild-and-commit step before deploying.
+- Production database migrations are **not** run automatically on deploy — `render.yaml`'s build step doesn't invoke it — so `server/db/migrate.py` must still be run against the production `DATABASE_URL` manually after each deploy that adds columns (it's idempotent — safe to re-run even if some columns already exist).
 
 **Blockchain layer (contracts and automation) — done.**
 - `contracts/` — `MockUSDC.sol` (test-only ERC-20, 6 decimals) and `Distributor.sol` (on-chain eligibility registry, live funding-pool balance check via `poolBalance()`, batched USDC disbursement via `disburseBatch`, plus `Pausable`/`ReentrancyGuard`). Hardhat test suite passes (12/12). `scripts/deploy.py` deploys locally or to Sepolia and writes `contracts/deployments/<network>.json`. See `contracts/CLAUDE.md` for design details and rationale.

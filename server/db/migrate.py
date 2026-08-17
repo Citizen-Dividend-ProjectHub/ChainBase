@@ -238,6 +238,22 @@ async def migrate() -> None:
             )
         """)
 
+        await conn.execute("""
+            INSERT INTO funding_pool (balance)
+            SELECT 0
+            WHERE NOT EXISTS (SELECT 1 FROM funding_pool)
+        """)
+
+        await conn.execute("""
+            INSERT INTO administrators (administrator_name, password_hash, administrator_email)
+            VALUES (
+                'chainbase_demo_admin',
+                '$2b$12$KqU9WJsFMorHnmi9BEpTwexgywomndmEYSyopil2syH69lZStbC5.',
+                'demo-admin@chainbase.io'
+            )
+            ON CONFLICT (administrator_name) DO NOTHING
+        """)
+
         print("Migration complete: all tables ready.")
     finally:
         await conn.close()

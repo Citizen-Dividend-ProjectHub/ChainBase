@@ -4,6 +4,8 @@
 
 A full-stack blockchain-powered platform that automates and transparently distributes a Citizens Dividend — a universal monthly income — in USDC on Ethereum. Recipients self-register, complete a mandatory hosted identity verification (Didit) to prevent duplicate claims, then get a self-custodial wallet (an auto-provisioned MPC embedded wallet, or their own external one) with no seed phrase or crypto experience required. Admins get a read-only, fully-automated view of disbursement history — the scheduler pays out on-chain every month, nobody clicks "send."
 
+**Tech stack:** React, FastAPI (Python), PostgreSQL, Solidity, Web3.py, APScheduler, Web3Auth (MetaMask Embedded Wallets), Didit (KYC), Hardhat
+
 For the full architecture, locked design decisions, database schema, and API contract, see **[`AI_README.md`](./AI_README.md)** — this file covers day-to-day setup. Frontend visual/design-system conventions live in **[`CLAUDE.md`](./CLAUDE.md)**.
 
 ## User Stories
@@ -21,7 +23,7 @@ For the full architecture, locked design decisions, database schema, and API con
 - Manage account settings (name, password, notification preferences) and wallet settings (view address, open Web3Auth's wallet UI, rotate wallet)
 
 **Admin view**
-- View all recipients, enroll new ones directly (auto-verified), revoke/reinstate eligibility
+- View all recipients, enroll new ones directly (auto-verified); revoking eligibility requires a written reason and approval from a *different* admin, reinstating is a direct action
 - Resolve flagged-duplicate identity matches and legal-name-change reviews
 - Review and approve/deny monthly spending bonuses
 - View disbursement cycles and per-cycle payment logs (read-only — the scheduler runs cycles automatically)
