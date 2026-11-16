@@ -1,7 +1,5 @@
 # ChainBase — Citizens Dividend Platform
 
-**Live site:** https://chainbase-17bj.onrender.com
-
 A full-stack blockchain-powered platform that automates and transparently distributes a Citizens Dividend — a universal monthly income — in USDC on Ethereum. Recipients self-register, complete a mandatory hosted identity verification (Didit) to prevent duplicate claims, then get a self-custodial wallet (an auto-provisioned MPC embedded wallet, or their own external one) with no seed phrase or crypto experience required. Admins get a read-only, fully-automated view of disbursement history — the scheduler pays out on-chain every month, nobody clicks "send."
 
 **Tech stack:** React, FastAPI (Python), PostgreSQL, Solidity, Web3.py, APScheduler, Web3Auth (MetaMask Embedded Wallets), Didit (KYC), Hardhat
